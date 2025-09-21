@@ -1,0 +1,31 @@
+{
+  "name": "eccentric-car-meta-backend",
+  "version": "1.0.0",
+  "description": "Backend for automotive text-to-image search",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "nodemon src/app.js",
+    "start": "node src/app.js"
+  },
+  "dependencies": {
+    "@huggingface/inference": "^2.6.4",
+    "@huggingface/transformers": "^3.7.3",
+    "@xenova/transformers": "^2.17.2",
+    "bcryptjs": "^2.4.3",
+    "blob-polyfill": "^9.0.20240710",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.32.6",
+    "sqlite3": "^5.1.6",
+    "undici": "^7.16.0",
+    "weaviate-ts-client": "^1.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

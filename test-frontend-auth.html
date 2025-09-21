@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Authentication Test</h1>
+    
+    <div class="test">
+        <h3>Test 1: Login</h3>
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="admin123">
+        <button onclick="testLogin()">Login</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 2: Check Authentication Status</h3>
+        <button onclick="checkAuth()">Check Auth Status</button>
+        <div id="authResult"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 3: Access Protected Route</h3>
+        <button onclick="testProtectedRoute()">Test Protected Route</button>
+        <div id="protectedResult"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 4: Logout</h3>
+        <button onclick="testLogout()">Logout</button>
+        <div id="logoutResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = null;
+
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    authToken = data.token;
+                    localStorage.setItem('admin_token', data.token);
+                    resultDiv.innerHTML = '<div class="success">✅ Login successful! Token stored.</div>';
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Login failed: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Login error: ${error.message}</div>`;
+            }
+        }
+
+        function checkAuth() {
+            const resultDiv = document.getElementById('authResult');
+            const token = localStorage.getItem('admin_token');
+
+            if (!token) {
+                resultDiv.innerHTML = '<div class="error">❌ No token found - not authenticated</div>';
+                return;
+            }
+
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const now = Math.floor(Date.now() / 1000);
+                const isExpired = payload.exp <= now;
+
+                if (isExpired) {
+                    resultDiv.innerHTML = '<div class="error">❌ Token expired</div>';
+                    localStorage.removeItem('admin_token');
+                } else {
+                    resultDiv.innerHTML = `<div class="success">✅ Authenticated as: ${payload.username}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">❌ Invalid token</div>';
+                localStorage.removeItem('admin_token');
+            }
+        }
+
+        async function testProtectedRoute() {
+            const resultDiv = document.getElementById('protectedResult');
+            const token = localStorage.getItem('admin_token');
+
+            if (!token) {
+                resultDiv.innerHTML = '<div class="error">❌ No token - cannot test protected route</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/images/stats/overview`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = '<div class="success">✅ Protected route accessible!</div>';
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Protected route failed: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Protected route error: ${error.message}</div>`;
+            }
+        }
+
+        function testLogout() {
+            const resultDiv = document.getElementById('logoutResult');
+            localStorage.removeItem('admin_token');
+            authToken = null;
+            resultDiv.innerHTML = '<div class="success">✅ Logged out successfully!</div>';
+        }
+
+        // Check initial auth status on load
+        window.onload = function() {
+            checkAuth();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-image { margin: 20px 0; border: 2px solid #ccc; padding: 10px; }
+        img { max-width: 300px; height: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Image Loading Test</h1>
+    
+    <div class="test-image">
+        <h3>Test 1: Direct Image URL</h3>
+        <img src="http://localhost:3001/uploads/1758198455067_588cbba4081d2ef6.jpeg" 
+             alt="BMW Image" 
+             onload="showSuccess(this)" 
+             onerror="showError(this)">
+        <p id="result1"></p>
+    </div>
+    
+    <div class="test-image">
+        <h3>Test 2: WebP Image</h3>
+        <img src="http://localhost:3001/uploads/1758198457525_8ce18c66f947370b.webp" 
+             alt="Audi Image" 
+             onload="showSuccess(this)" 
+             onerror="showError(this)">
+        <p id="result2"></p>
+    </div>
+    
+    <div class="test-image">
+        <h3>Test 3: Same Origin Test</h3>
+        <img src="http://localhost:3000/placeholder-image.svg" 
+             alt="Placeholder" 
+             onload="showSuccess(this)" 
+             onerror="showError(this)">
+        <p id="result3"></p>
+    </div>
+
+    <script>
+        function showSuccess(img) {
+            const resultId = img.alt === 'BMW Image' ? 'result1' : 
+                           img.alt === 'Audi Image' ? 'result2' : 'result3';
+            document.getElementById(resultId).innerHTML = 
+                '<span class="success">✅ Image loaded successfully!</span>';
+        }
+        
+        function showError(img) {
+            const resultId = img.alt === 'BMW Image' ? 'result1' : 
+                           img.alt === 'Audi Image' ? 'result2' : 'result3';
+            document.getElementById(resultId).innerHTML = 
+                '<span class="error">❌ Image failed to load</span>';
+        }
+        
+        // Test if we can fetch the image via JavaScript
+        async function testFetch() {
+            try {
+                const response = await fetch('http://localhost:3001/uploads/1758198455067_588cbba4081d2ef6.jpeg');
+                console.log('Fetch test result:', response.status, response.statusText);
+                document.getElementById('fetch-result').innerHTML = 
+                    `<span class="success">✅ Fetch successful: ${response.status}</span>`;
+            } catch (error) {
+                console.error('Fetch test error:', error);
+                document.getElementById('fetch-result').innerHTML = 
+                    `<span class="error">❌ Fetch failed: ${error.message}</span>`;
+            }
+        }
+        
+        // Run fetch test after page loads
+        window.addEventListener('load', testFetch);
+    </script>
+    
+    <div class="test-image">
+        <h3>Test 4: JavaScript Fetch Test</h3>
+        <p id="fetch-result">Testing...</p>
+    </div>
+</body>
+</html>
