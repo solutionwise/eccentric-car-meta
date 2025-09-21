@@ -29,7 +29,7 @@ const upload = multer({
   storage: storage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 10 // Max 10 files at once
+    files: 100 // Max 100 files at once
   },
   fileFilter: (req, file, cb) => {
     const validation = imageService.validateFile(file);
@@ -127,7 +127,7 @@ router.post('/single', upload.single('image'), async (req, res) => {
 });
 
 // Upload multiple images
-router.post('/multiple', upload.array('images', 10), async (req, res) => {
+router.post('/multiple', upload.array('images', 100), async (req, res) => {
   try {
     await ensureTempDir();
     

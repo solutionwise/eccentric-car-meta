@@ -1,9 +1,8 @@
 <template>
-  <div :class="cn('rounded-lg border bg-card text-card-foreground shadow-sm', $attrs.class)" v-bind="$attrs">
+  <div class="rounded-lg border bg-white text-gray-900 shadow-sm" v-bind="$attrs">
     <slot />
   </div>
 </template>
 
-<script setup lang="ts">
-import { cn } from '~/lib/utils'
+<script setup>
 </script>

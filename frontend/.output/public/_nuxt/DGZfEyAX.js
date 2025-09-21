@@ -1,0 +1,1 @@
+import{U as r,j as o,n as e}from"./CXJKphkF.js";const u=r((a,n)=>{try{const{$auth:t}=o();if(!t||typeof t.isAuthenticated!="function"||!t.isAuthenticated())return e("/login")}catch(t){return console.warn("Auth middleware error:",t),e("/login")}});export{u as default};

@@ -43,15 +43,19 @@ router.post('/', async (req, res) => {
     // Process the query and generate embedding
     const queryResult = await clipService.processQuery(query);
     
-    // Search in Weaviate with semantic similarity
-    const searchResults = await weaviateService.searchImages(
+    // Extract potential tags from the query for tag-based filtering
+    const queryWords = query.split(/\s+/).filter(word => word.length > 2);
+    
+    // Search in Weaviate with combined semantic similarity and tag filtering
+    const searchResults = await weaviateService.searchImagesWithTags(
       queryResult.embedding, 
+      queryWords, // Use query words as potential tag filters
       limit * 2 // Get more results for hybrid search
     );
 
-    // Also search by tags for better coverage
-    const tagSearchResults = await Image.searchByTags(
-      query.split(/\s+/).filter(word => word.length > 2), 
+    // Also do a pure tag-based search for better coverage
+    const tagSearchResults = await weaviateService.searchImagesByTags(
+      queryWords, 
       limit
     );
 
@@ -60,7 +64,7 @@ router.post('/', async (req, res) => {
       searchResults.map(async (result) => {
         try {
           const dbImage = await Image.findByWeaviateId(result._additional.id);
-          const similarity = 1 - result._additional.distance; // Convert distance to similarity
+          const similarity = result._additional.distance ? 1 - result._additional.distance : 0.9; // Convert distance to similarity
           
           return {
             id: dbImage?.id,
@@ -72,11 +76,11 @@ router.post('/', async (req, res) => {
             similarity: similarity,
             distance: result._additional.distance,
             weaviateId: result._additional.id,
-            searchType: 'semantic'
+            searchType: result.searchType || 'semantic'
           };
         } catch (error) {
           console.error('Error enriching result:', error);
-          const similarity = 1 - result._additional.distance;
+          const similarity = result._additional.distance ? 1 - result._additional.distance : 0.9;
           
           return {
             filename: result.filename,
@@ -87,42 +91,45 @@ router.post('/', async (req, res) => {
             similarity: similarity,
             distance: result._additional.distance,
             weaviateId: result._additional.id,
-            searchType: 'semantic'
+            searchType: result.searchType || 'semantic'
           };
         }
       })
     );
 
-    // Enrich tag search results
-    const enrichedTagResults = tagSearchResults.map(image => {
-      let tags = [];
-      let metadata = null;
-      
-      try {
-        tags = image.tags ? JSON.parse(image.tags) : [];
-      } catch (error) {
-        console.warn('Failed to parse tags for image:', image.id, error.message);
-        tags = [];
-      }
-      
-      try {
-        metadata = image.metadata ? JSON.parse(image.metadata) : null;
-      } catch (error) {
-        console.warn('Failed to parse metadata for image:', image.id, error.message);
-        metadata = null;
-      }
-      
-      return {
-        id: image.id,
-        filename: image.filename,
-        originalName: image.original_name,
-        filePath: image.file_path,
-        tags: tags,
-        metadata: metadata,
-        similarity: 0.8, // High similarity for tag matches
-        searchType: 'tag'
-      };
-    });
+    // Enrich tag search results (now from Weaviate)
+    const enrichedTagResults = await Promise.all(
+      tagSearchResults.map(async (result) => {
+        try {
+          const dbImage = await Image.findByWeaviateId(result._additional.id);
+          
+          return {
+            id: dbImage?.id,
+            filename: result.filename,
+            originalName: result.originalName,
+            filePath: result.filePath,
+            tags: result.tags || [],
+            metadata: result.metadata,
+            similarity: 0.8, // High similarity for tag matches
+            weaviateId: result._additional.id,
+            searchType: result.searchType || 'tag'
+          };
+        } catch (error) {
+          console.error('Error enriching tag result:', error);
+          
+          return {
+            filename: result.filename,
+            originalName: result.originalName,
+            filePath: result.filePath,
+            tags: result.tags || [],
+            metadata: result.metadata,
+            similarity: 0.8,
+            weaviateId: result._additional.id,
+            searchType: result.searchType || 'tag'
+          };
+        }
+      })
+    );
 
     // Combine and deduplicate results
     const allResults = [...enrichedSemanticResults, ...enrichedTagResults];
@@ -163,7 +170,7 @@ router.post('/', async (req, res) => {
       totalResults: limitedResults.length,
       totalFound: filteredResults.length,
       minSimilarity: minSimilarity,
-      searchMethod: useHybridSearch ? 'hybrid-semantic-tag' : 'semantic-tag',
+      searchMethod: useHybridSearch ? 'hybrid-weaviate-unified' : 'weaviate-unified',
       searchTime: Date.now()
     });
 

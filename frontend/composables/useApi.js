@@ -30,7 +30,10 @@ export const useApi = () => {
       headers.Authorization = `Bearer ${token}`
     }
 
-    return await $fetch(url, {
+    // Construct full URL for direct API calls
+    const fullUrl = url.startsWith('http') ? url : `${apiBase}${url}`
+
+    return await $fetch(fullUrl, {
       ...options,
       headers
     })

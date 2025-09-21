@@ -193,6 +193,101 @@ class WeaviateService {
       throw error;
     }
   }
+
+  // Search images by tags using Weaviate GraphQL
+  async searchImagesByTags(tags, limit = 10) {
+    try {
+      console.log(`🔍 Searching Weaviate by tags: ${tags.join(', ')}`);
+      
+      const result = await this.client.graphql
+        .get()
+        .withClassName(this.className)
+        .withFields('filename originalName filePath tags metadata _additional { id }')
+        .withWhere({
+          operator: 'And',
+          operands: tags.map(tag => ({
+            path: ['tags'],
+            operator: 'ContainsAny',
+            valueText: [tag]
+          }))
+        })
+        .withLimit(limit)
+        .do();
+
+      const results = result.data.Get[this.className] || [];
+      
+      // Parse metadata from JSON string back to object
+      return results.map(item => {
+        let metadata = null;
+        try {
+          metadata = item.metadata ? JSON.parse(item.metadata) : null;
+        } catch (error) {
+          console.warn('Failed to parse metadata in Weaviate tag search result:', error.message);
+          metadata = null;
+        }
+        
+        return {
+          ...item,
+          metadata: metadata,
+          searchType: 'tag'
+        };
+      });
+    } catch (error) {
+      console.error('Error searching images by tags in Weaviate:', error);
+      throw error;
+    }
+  }
+
+  // Combined search: semantic similarity + tag filtering
+  async searchImagesWithTags(queryEmbedding, tags = [], limit = 10) {
+    try {
+      console.log(`🔍 Combined search: semantic + tags (${tags.join(', ')})`);
+      
+      let query = this.client.graphql
+        .get()
+        .withClassName(this.className)
+        .withFields('filename originalName filePath tags metadata _additional { id distance }')
+        .withNearVector({
+          vector: queryEmbedding,
+          distance: 1.5
+        });
+
+      // Add tag filtering if tags are provided
+      if (tags && tags.length > 0) {
+        query = query.withWhere({
+          operator: 'And',
+          operands: tags.map(tag => ({
+            path: ['tags'],
+            operator: 'ContainsAny',
+            valueText: [tag]
+          }))
+        });
+      }
+
+      const result = await query.withLimit(limit).do();
+      const results = result.data.Get[this.className] || [];
+      
+      // Parse metadata from JSON string back to object
+      return results.map(item => {
+        let metadata = null;
+        try {
+          metadata = item.metadata ? JSON.parse(item.metadata) : null;
+        } catch (error) {
+          console.warn('Failed to parse metadata in Weaviate combined search result:', error.message);
+          metadata = null;
+        }
+        
+        return {
+          ...item,
+          metadata: metadata,
+          searchType: tags.length > 0 ? 'semantic-tag' : 'semantic'
+        };
+      });
+    } catch (error) {
+      console.error('Error in combined search:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new WeaviateService();
