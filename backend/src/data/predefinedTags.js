@@ -60,22 +60,24 @@ const predefinedTags = {
 
   brands: [
     // Mainstream brands
-    'toyota', 'honda', 'bmw', 'ford', 'chevrolet', 'audi', 'mercedes', 'mercedes-benz',
+    'toyota', 'honda', 'bmw', 'ford', 'chevrolet', 'audi', 'mercedes',
     'volkswagen', 'nissan', 'hyundai', 'kia', 'mazda', 'subaru', 'lexus', 'acura',
     'infiniti', 'cadillac', 'lincoln', 'jeep', 'ram', 'dodge', 'chrysler', 'buick', 'gmc',
     // Luxury brands
-    'porsche', 'ferrari', 'lamborghini', 'mclaren', 'bentley', 'rolls royce', 'rolls-royce',
+    'porsche', 'ferrari', 'lamborghini', 'mclaren', 'bentley', 'rolls royce',
     'maserati', 'alfa romeo', 'jaguar', 'land rover', 'volvo', 'saab', 'mini', 'smart',
     // Electric brands
     'tesla', 'rivian', 'lucid', 'polestar', 'nio', 'xpeng', 'li auto', 'byton',
+    // Indian brands
+    'tata', 'mahindra', 'maruti', 'maruti suzuki', 'hindustan', 'force motors',
+    'ashok leyland', 'eicher', 'bajaj', 'isuzu india', 'toyota kirloskar', 'renault india',
+    'hyundai india', 'kia india', 'mg motor india',
     // Performance brands
     // 'amg', 'm sport', 's line', 'f sport', 'type r', 'st', 'rs', 'gt', 'gtr',
     // Commercial brands
-    'freightliner', 'peterbilt', 'kenworth', 'mack', 'international', 'isuzu', 'hino',
-    // Motorcycle brands (for completeness)
-    'harley davidson', 'yamaha', 'kawasaki', 'suzuki', 'ducati', 'ktm', 'bmw motorcycle',
+    // 'freightliner', 'peterbilt', 'kenworth', 'mack', 'international', 'isuzu', 'hino',
     // Classic/vintage brands
-    'packard', 'studebaker', 'hudson', 'nash', 'willys', 'crosley', 'tucker'
+    // 'packard', 'studebaker', 'hudson', 'nash', 'willys', 'crosley', 'tucker'
   ],
 
   // Additional categories for comprehensive tagging

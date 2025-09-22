@@ -204,11 +204,11 @@ class WeaviateService {
         .withClassName(this.className)
         .withFields('filename originalName filePath tags metadata _additional { id }')
         .withWhere({
-          operator: 'And',
+          operator: 'Or',
           operands: tags.map(tag => ({
             path: ['tags'],
-            operator: 'ContainsAny',
-            valueText: [tag]
+            operator: 'Like',
+            valueText: `*${tag}*` // Use wildcard matching for partial matches
           }))
         })
         .withLimit(limit)
@@ -258,8 +258,8 @@ class WeaviateService {
           operator: 'Or',
           operands: tags.map(tag => ({
             path: ['tags'],
-            operator: 'ContainsAny',
-            valueText: [tag]
+            operator: 'Like',
+            valueText: `*${tag}*` // Use wildcard matching for partial matches
           }))
         });
       }

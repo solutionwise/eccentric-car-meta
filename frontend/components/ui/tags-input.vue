@@ -11,7 +11,7 @@
       :key="`${tag}-${index}`"
       class="inline-flex items-center gap-1 rounded-md border border-transparent bg-gray-100 px-2 py-1 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
     >
-      <span>{{ tag }}</span>
+      <span>{{ capitalizeWords(tag) }}</span>
       <button
         type="button"
         class="ml-1 rounded-full outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-gray-300"
@@ -103,6 +103,10 @@ const inputValue = ref('')
 
 const focusInput = () => {
   inputRef.value?.focus()
+}
+
+const capitalizeWords = (str) => {
+  return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 const addTag = (tag) => {

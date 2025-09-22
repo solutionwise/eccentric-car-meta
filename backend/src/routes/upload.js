@@ -72,9 +72,9 @@ router.post('/single', upload.single('image'), async (req, res) => {
     const manualTags = req.body.tags ? JSON.parse(req.body.tags) : [];
     const allTags = [...new Set([...autoTags, ...manualTags])];
 
-    // Generate CLIP embedding
+    // Generate enhanced CLIP embedding with tag information
     const imageBuffer = await fs.readFile(fileData.filePath);
-    const embedding = await clipService.generateImageEmbedding(imageBuffer);
+    const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags);
 
     // Store in Weaviate
     const weaviateId = await weaviateService.addImage({
@@ -155,9 +155,9 @@ router.post('/multiple', upload.array('images', 100), async (req, res) => {
         const manualTags = req.body[`tags_${i}`] ? JSON.parse(req.body[`tags_${i}`]) : [];
         const allTags = [...new Set([...autoTags, ...manualTags])];
 
-        // Generate CLIP embedding
+        // Generate enhanced CLIP embedding with tag information
         const imageBuffer = await fs.readFile(fileData.filePath);
-        const embedding = await clipService.generateImageEmbedding(imageBuffer);
+        const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags);
 
         // Store in Weaviate
         const weaviateId = await weaviateService.addImage({
@@ -314,9 +314,9 @@ router.post('/', upload.any(), async (req, res) => {
       const manualTags = req.body.tags ? JSON.parse(req.body.tags) : [];
       const allTags = [...new Set([...autoTags, ...manualTags])];
 
-      // Generate CLIP embedding
+      // Generate enhanced CLIP embedding with tag information
       const imageBuffer = await fs.readFile(fileData.filePath);
-      const embedding = await clipService.generateImageEmbedding(imageBuffer);
+      const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags);
 
       // Store in Weaviate
       const weaviateId = await weaviateService.addImage({
@@ -354,9 +354,9 @@ router.post('/', upload.any(), async (req, res) => {
           const manualTags = req.body.tags ? JSON.parse(req.body.tags) : [];
           const allTags = [...new Set([...autoTags, ...manualTags])];
 
-          // Generate CLIP embedding
+          // Generate enhanced CLIP embedding with tag information
           const imageBuffer = await fs.readFile(fileData.filePath);
-          const embedding = await clipService.generateImageEmbedding(imageBuffer);
+          const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags);
 
           // Store in Weaviate
           const weaviateId = await weaviateService.addImage({

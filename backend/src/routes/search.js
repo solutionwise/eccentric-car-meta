@@ -46,107 +46,52 @@ router.post('/', async (req, res) => {
     // Extract potential tags from the query for tag-based filtering
     // Filter out common words and keep only meaningful automotive terms
     const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+    
+    // Helper function to generate search variations (singular/plural)
+    const generateSearchVariations = (word) => {
+      const variations = [word.toLowerCase()];
+      
+      // Handle pluralization
+      if (word.endsWith('s') && word.length > 3) {
+        // Remove 's' to get singular form
+        variations.push(word.slice(0, -1).toLowerCase());
+      } else {
+        // Add 's' to get plural form
+        variations.push((word + 's').toLowerCase());
+      }
+      
+      return [...new Set(variations)]; // Remove duplicates
+    };
+    
     const queryWords = query.split(/\s+/)
       .filter(word => word.length > 2)
-      .filter(word => !commonWords.includes(word.toLowerCase()));
+      .filter(word => !commonWords.includes(word.toLowerCase()))
+      .flatMap(word => generateSearchVariations(word)); // Generate variations for each word
     
-    // Search in Weaviate with combined semantic similarity and tag filtering
+    // Search only in Weaviate with enhanced embeddings (includes tag information)
     const searchResults = await weaviateService.searchImagesWithTags(
       queryResult.embedding, 
       queryWords, // Use query words as potential tag filters
       limit * 2 // Get more results for hybrid search
     );
 
-    // Also do a pure tag-based search for better coverage
-    const tagSearchResults = await weaviateService.searchImagesByTags(
-      queryWords, 
-      limit
-    );
-
-    // Enrich semantic search results with database metadata
-    const enrichedSemanticResults = await Promise.all(
-      searchResults.map(async (result) => {
-        try {
-          const dbImage = await Image.findByWeaviateId(result._additional.id);
-          const similarity = result._additional.distance ? 1 - result._additional.distance : 0.9; // Convert distance to similarity
-          
-          return {
-            id: dbImage?.id,
-            filename: result.filename,
-            originalName: result.originalName,
-            filePath: result.filePath,
-            tags: result.tags || [],
-            metadata: result.metadata,
-            similarity: similarity,
-            distance: result._additional.distance,
-            weaviateId: result._additional.id,
-            searchType: result.searchType || 'semantic'
-          };
-        } catch (error) {
-          console.error('Error enriching result:', error);
-          const similarity = result._additional.distance ? 1 - result._additional.distance : 0.9;
-          
-          return {
-            filename: result.filename,
-            originalName: result.originalName,
-            filePath: result.filePath,
-            tags: result.tags || [],
-            metadata: result.metadata,
-            similarity: similarity,
-            distance: result._additional.distance,
-            weaviateId: result._additional.id,
-            searchType: result.searchType || 'semantic'
-          };
-        }
-      })
-    );
-
-    // Enrich tag search results (now from Weaviate)
-    const enrichedTagResults = await Promise.all(
-      tagSearchResults.map(async (result) => {
-        try {
-          const dbImage = await Image.findByWeaviateId(result._additional.id);
-          
-          return {
-            id: dbImage?.id,
-            filename: result.filename,
-            originalName: result.originalName,
-            filePath: result.filePath,
-            tags: result.tags || [],
-            metadata: result.metadata,
-            similarity: 0.8, // High similarity for tag matches
-            weaviateId: result._additional.id,
-            searchType: result.searchType || 'tag'
-          };
-        } catch (error) {
-          console.error('Error enriching tag result:', error);
-          
-          return {
-            filename: result.filename,
-            originalName: result.originalName,
-            filePath: result.filePath,
-            tags: result.tags || [],
-            metadata: result.metadata,
-            similarity: 0.8,
-            weaviateId: result._additional.id,
-            searchType: result.searchType || 'tag'
-          };
-        }
-      })
-    );
-
-    // Combine and deduplicate results
-    const allResults = [...enrichedSemanticResults, ...enrichedTagResults];
-    const uniqueResults = new Map();
-    
-    allResults.forEach(result => {
-      const key = result.id || result.filename;
-      if (!uniqueResults.has(key) || result.similarity > uniqueResults.get(key).similarity) {
-        uniqueResults.set(key, result);
-      }
+    // Process results directly from Weaviate (no need for database enrichment)
+    const enrichedResults = searchResults.map((result) => {
+      const similarity = result._additional.distance ? 1 - result._additional.distance : 0.9; // Convert distance to similarity
+      
+      return {
+        id: result._additional.id, // Use Weaviate ID as the primary identifier
+        filename: result.filename,
+        originalName: result.originalName,
+        filePath: result.filePath,
+        tags: result.tags || [],
+        metadata: result.metadata,
+        similarity: similarity,
+        distance: result._additional.distance,
+        weaviateId: result._additional.id,
+        searchType: result.searchType || 'semantic'
+      };
     });
-    
-    const enrichedResults = Array.from(uniqueResults.values());
 
     // Apply hybrid search if enabled
     let finalResults = enrichedResults;
@@ -174,7 +119,7 @@ router.post('/', async (req, res) => {
       totalResults: limitedResults.length,
       totalFound: filteredResults.length,
       minSimilarity: minSimilarity,
-      searchMethod: 'weaviate-unified',
+      searchMethod: 'weaviate-only',
       searchTime: Date.now()
     });
 
@@ -230,18 +175,17 @@ router.get('/suggestions', async (req, res) => {
 router.get('/analytics', async (req, res) => {
   try {
     const totalImages = await weaviateService.getStats();
-    const dbStats = await Image.findAll(1, 0); // Get count from DB
     
     res.json({
       totalImages,
-      databaseImages: dbStats.length,
+      searchMethod: 'Weaviate-only with enhanced embeddings',
       searchCapabilities: [
-        'Natural language search',
-        'Color-based search',
-        'Vehicle type search',
-        'Feature-based search',
-        'Brand search',
-        'Performance search'
+        'Natural language search with CLIP embeddings',
+        'Color-based search with tag integration',
+        'Vehicle type search with semantic understanding',
+        'Feature-based search with enhanced embeddings',
+        'Brand search with combined visual and text features',
+        'Performance search with hybrid scoring'
       ],
       supportedQueries: [
         'Find red cars',
@@ -251,6 +195,12 @@ router.get('/analytics', async (req, res) => {
         'Convertibles with sunroof',
         'BMW sedans',
         'Affordable hatchbacks'
+      ],
+      embeddingFeatures: [
+        'Proper CLIP vision embeddings',
+        'Tag information integrated into embeddings',
+        '70% visual + 30% semantic weighting',
+        'Enhanced search accuracy'
       ]
     });
   } catch (error) {

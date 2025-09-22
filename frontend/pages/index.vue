@@ -328,9 +328,9 @@
                 <div class="mt-2">
                   <TagDisplay :tags="result.tags || []" />
                 </div>
-                <div class="mt-2 text-sm text-gray-500">
+                <!-- <div class="mt-2 text-sm text-gray-500">
                   Uploaded {{ new Date(result.created_at).toLocaleDateString() }} • {{ result.tags?.length || 0 }} tags
-                </div>
+                </div> -->
               </div>
               <div class="flex-shrink-0">
                 <CarImageModal
@@ -500,21 +500,21 @@ const sortedResults = computed(() => {
 const searchImages = async (page = 1, append = false) => {
   if (!searchQuery.value.trim()) return
   
-  if (page === 1) {
+  // if (page === 1) {
     loading.value = true
     hasSearched.value = true
     error.value = ''
     showSuggestions.value = false
     currentPage.value = 1
     results.value = []
-  } else {
-    loadingMore.value = true
-  }
+  // } else {
+    // loadingMore.value = true
+  // }
   
   // Add to recent searches only for new searches
-  if (page === 1) {
+  // if (page === 1) {
     addToRecentSearches(searchQuery.value)
-  }
+  // }
   
   try {
     const searchBody = {
