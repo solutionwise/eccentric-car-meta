@@ -7,6 +7,8 @@ class ClipService {
     this.embeddingCache = new Map();
     this.initialized = false;
     this.modelName = 'Xenova/clip-vit-base-patch32';
+    this.tokenizerPromise = null;
+    this.textModelPromise = null;
   }
 
   async initialize() {
@@ -17,6 +19,11 @@ class ClipService {
 
       // Dynamic import for ES module
       const { pipeline } = await import('@xenova/transformers');
+      if (!this.tokenizer || !this.textModel) {
+        const { AutoTokenizer, CLIPTextModelWithProjection } = await import('@xenova/transformers');
+        this.tokenizerPromise = AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32');
+        this.textModelPromise = CLIPTextModelWithProjection.from_pretrained('Xenova/clip-vit-base-patch32');
+      }
 
       // Initialize the CLIP pipeline for zero-shot image classification
       this.model = await pipeline('zero-shot-image-classification', this.modelName, {
@@ -147,67 +154,59 @@ class ClipService {
       throw error;
     }
   }
-
-  async generateTextEmbedding(text) {
-    await this.initialize();
-
-    try {
-      console.log(`📝 Generating text embedding for: "${text}"`);
-
-      // For text embeddings, we'll create a feature vector based on the text content
-      // This is a simplified approach since transformers.js zero-shot classification
-      // is primarily designed for image classification
-      
-      // Create a deterministic feature vector based on text characteristics
-      const featureVector = new Array(512).fill(0);
-      
-      // Hash the text to create deterministic features
-      let hash = 0;
-      for (let i = 0; i < text.length; i++) {
-        const char = text.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      
-      // Use the hash to seed the feature vector
-      const seed = Math.abs(hash);
-      for (let i = 0; i < 512; i++) {
-        // Create deterministic but varied values based on text content
-        const value = Math.sin(seed + i) * 0.5;
-        featureVector[i] = value;
-      }
-
-      console.log(`✅ Generated text embedding with ${featureVector.length} dimensions`);
-      return featureVector;
+  
+    // async generateTextEmbedding(text) {
+    //   await this.initialize();
+  
+    //   try {
+    //     console.log(`📝 Generating text embedding for: "${text}"`);
+  
+    //     // For text embeddings, we'll create a feature vector based on the text content
+    //     // This is a simplified approach since transformers.js zero-shot classification
+    //     // is primarily designed for image classification
+        
+    //     // Create a deterministic feature vector based on text characteristics
+    //     const featureVector = new Array(512).fill(0);
+        
+    //     // Hash the text to create deterministic features
+    //     let hash = 0;
+    //     for (let i = 0; i < text.length; i++) {
+    //       const char = text.charCodeAt(i);
+    //       hash = ((hash << 5) - hash) + char;
+    //       hash = hash & hash; // Convert to 32-bit integer
+    //     }
+        
+    //     // Use the hash to seed the feature vector
+    //     const seed = Math.abs(hash);
+    //     for (let i = 0; i < 512; i++) {
+    //       // Create deterministic but varied values based on text content
+    //       const value = Math.sin(seed + i) * 0.5;
+    //       featureVector[i] = value;
+    //     }
+  
+    //     console.log(`✅ Generated text embedding with ${featureVector.length} dimensions`);
+    //     return featureVector;
+    //   } catch (error) {
+    //     console.error('❌ Error generating text embedding:', error.message);
+    //     throw error;
+    //   }
+    // }
+  
+    async generateTextEmbedding(text) {
+      try {
+        await this.initialize();
+        const tokenizer = await this.tokenizerPromise;
+        const textModel = await this.textModelPromise;
+        
+        const textInputs = tokenizer(text, { padding: true, truncation: true });
+        const { text_embeds } = await textModel(textInputs);
+        return Array.from(text_embeds.data);
     } catch (error) {
-      console.error('❌ Error generating text embedding:', error.message);
-      throw error;
+        console.error('Error generating text embedding:', error);
+        throw error;
     }
-  }
 
-  async computeSimilarity(imageEmbedding, textEmbedding) {
-    try {
-      console.log('🔍 Computing similarity with transformers.js...');
-
-      // Compute cosine similarity
-      let dotProduct = 0;
-      let normA = 0;
-      let normB = 0;
-
-      for (let i = 0; i < imageEmbedding.length; i++) {
-        dotProduct += imageEmbedding[i] * textEmbedding[i];
-        normA += imageEmbedding[i] * imageEmbedding[i];
-        normB += textEmbedding[i] * textEmbedding[i];
-      }
-
-      const similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-      console.log(`✅ Computed similarity: ${similarity.toFixed(4)}`);
-      return similarity;
-    } catch (error) {
-      console.error('❌ Error computing similarity:', error.message);
-      throw error;
     }
-  }
 
   async clearCache() {
     this.embeddingCache.clear();
@@ -307,7 +306,7 @@ ontology = {
       cheap: ["budget", "affordable", "economy"]
     },
     brands: ["bmw", "audi", "mercedes", "tesla", "toyota", "honda"]
-  }; 
+  };
   // Parse query into structured fields
   parseQuery(query) {
     const tokens = query.toLowerCase().split(/\s+/);

@@ -283,7 +283,7 @@
                 </div>
               </div>
               <div class="p-4">
-                <h4 class="font-semibold text-gray-900 truncate mb-2">{{ result.filename }}</h4>
+                <!-- <h4 class="font-semibold text-gray-900 truncate mb-2">{{ result.filename }}</h4> -->
                 
                 <!-- Tags Display -->
                 <div class="mb-3">
@@ -293,7 +293,7 @@
                 <!-- Metadata -->
                 <div class="text-xs text-gray-500">
                   <div class="flex items-center justify-between">
-                    <span>{{ new Date(result.created_at).toLocaleDateString() }}</span>
+                    <!-- <span>{{ new Date(result.created_at).toLocaleDateString() }}</span> -->
                     <span class="flex items-center">
                       <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>

@@ -79,7 +79,7 @@
               <div class="relative">
                 <CarImageModal
                   :file_path="getImageUrl(image.filename)"
-                  :file_name="image.filename"
+                  :file_name="image.original_name"
                   :tags="image.tags || []"
                   :image-id="image.id"
                   :allow-edit="true"
@@ -110,7 +110,7 @@
                 </div>
               </div>
                 <div class="p-4">
-                  <h4 class="font-medium text-gray-900 truncate">{{ image.filename }}</h4>
+                  <h4 class="font-medium text-gray-900 truncate">{{ image.original_name }}</h4>
                   <p class="text-sm text-gray-600">Uploaded: {{ new Date(image.created_at).toLocaleDateString() }}</p>
                   
                   <!-- Tag Manager -->
