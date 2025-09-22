@@ -19,7 +19,7 @@
           <!-- Left side - Full car image -->
           <div class="flex-1 bg-gray-100 flex items-center justify-center p-8">
             <img
-              :src="imageUrl"
+              :src="file_path"
               :alt="file_name"
               class="max-w-full max-h-full object-contain rounded-lg shadow-lg"
             />
@@ -174,10 +174,10 @@ const localTags = ref([...props.tags])
 const emit = defineEmits(['tags-updated'])
 
 // Computed
-const imageUrl = computed(() => {
-  const apiBaseUrl = useRuntimeConfig().public.apiBase
-  return `${apiBaseUrl}/uploads/${props.file_name}`
-})
+// const imageUrl = computed(() => {
+//   const apiBaseUrl = useRuntimeConfig().public.apiBase
+//   return `${apiBaseUrl}/uploads/${props.file_name}`
+// })
 
 // Methods
 const openModal = () => {

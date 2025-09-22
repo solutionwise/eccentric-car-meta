@@ -10,7 +10,7 @@ router.post('/', async (req, res) => {
     const { 
       query, 
       limit = 20, 
-      minSimilarity = 0.4,
+      minSimilarity = 0.35,
       useHybridSearch = true,
       semanticWeight = 0.7,
       keywordWeight = 0.3
@@ -44,7 +44,11 @@ router.post('/', async (req, res) => {
     const queryResult = await clipService.processQuery(query);
     
     // Extract potential tags from the query for tag-based filtering
-    const queryWords = query.split(/\s+/).filter(word => word.length > 2);
+    // Filter out common words and keep only meaningful automotive terms
+    const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+    const queryWords = query.split(/\s+/)
+      .filter(word => word.length > 2)
+      .filter(word => !commonWords.includes(word.toLowerCase()));
     
     // Search in Weaviate with combined semantic similarity and tag filtering
     const searchResults = await weaviateService.searchImagesWithTags(
@@ -170,7 +174,7 @@ router.post('/', async (req, res) => {
       totalResults: limitedResults.length,
       totalFound: filteredResults.length,
       minSimilarity: minSimilarity,
-      searchMethod: useHybridSearch ? 'hybrid-weaviate-unified' : 'weaviate-unified',
+      searchMethod: 'weaviate-unified',
       searchTime: Date.now()
     });
 

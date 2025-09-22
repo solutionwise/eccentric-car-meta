@@ -225,121 +225,122 @@ class ClipService {
   }
 
   // Process search query and generate embedding
-  // async processQuery(query) {
-  //   try {
-  //     await this.initialize();
+  async processQuery(query) {
+    try {
+      await this.initialize();
       
-  //     console.log(`🔍 Processing search query: "${query}"`);
+      console.log(`🔍 Processing search query: "${query}"`);
       
-  //     // Generate text embedding for the query
-  //     const embedding = await this.generateTextEmbedding(query);
+      // Generate text embedding for the query
+      const embedding = await this.generateTextEmbedding(query);
       
-  //     // Enhance the query with related terms
-  //     const enhancedQuery = this.enhanceQuery(query);
+      // Enhance the query with related terms
+      const enhancedQuery = this.enhanceQuery(query);
       
-  //     return {
-  //       originalQuery: query,
-  //       enhancedQuery: enhancedQuery,
-  //       embedding: embedding
-  //     };
-  //   } catch (error) {
-  //     console.error('❌ Error processing query:', error);
-  //     throw error;
-  //   }
-  // }
-
-  // // Enhance search query with related automotive terms
-  // enhanceQuery(query) {
-  //   const queryLower = query.toLowerCase();
-  //   const enhancements = [];
-    
-  //   // Add related terms based on the query
-  //   if (queryLower.includes('car') || queryLower.includes('vehicle') || queryLower.includes('auto')) {
-  //     enhancements.push('automobile', 'transportation');
-  //   }
-    
-  //   if (queryLower.includes('red') || queryLower.includes('blue') || queryLower.includes('color')) {
-  //     enhancements.push('colored vehicle', 'painted car');
-  //   }
-    
-  //   if (queryLower.includes('sport') || queryLower.includes('fast')) {
-  //     enhancements.push('performance car', 'racing vehicle');
-  //   }
-    
-  //   if (queryLower.includes('luxury') || queryLower.includes('expensive')) {
-  //     enhancements.push('premium car', 'high-end vehicle');
-  //   }
-    
-  //   if (queryLower.includes('truck') || queryLower.includes('pickup')) {
-  //     enhancements.push('commercial vehicle', 'utility truck');
-  //   }
-    
-  //   if (queryLower.includes('suv') || queryLower.includes('crossover')) {
-  //     enhancements.push('sport utility vehicle', 'family car');
-  //   }
-    
-  //   // Combine original query with enhancements
-  //   const allTerms = [query, ...enhancements];
-  //   return allTerms.join(' ');
-  // }
-
-
-ontology = {
-    colors: {
-      red: ["crimson", "scarlet", "ruby"],
-      blue: ["navy", "azure", "sky blue"],
-      black: ["jet black", "onyx", "charcoal"],
-      white: ["ivory", "pearl", "alabaster"]
-    },
-    types: {
-      suv: ["sport utility vehicle", "crossover"],
-      sedan: ["saloon", "executive car"],
-      hatchback: ["compact car", "small car"],
-      coupe: ["two-door car", "sport coupe"],
-      truck: ["pickup", "utility vehicle"],
-      car: ["automobile", "vehicle", "auto"]
-    },
-    attributes: {
-      luxury: ["premium", "high-end", "upscale", "exclusive"],
-      sporty: ["fast", "performance", "racing"],
-      electric: ["EV", "battery car", "zero-emission"],
-      cheap: ["budget", "affordable", "economy"]
-    },
-    brands: ["bmw", "audi", "mercedes", "tesla", "toyota", "honda"]
-  };
-  // Parse query into structured fields
-  parseQuery(query) {
-    const tokens = query.toLowerCase().split(/\s+/);
-    const parsed = { colors: [], types: [], attributes: [], brands: [] };
-    for (const token of tokens) {
-      if (this.ontology.colors[token]) parsed.colors.push(token);
-      else if (this.ontology.types[token]) parsed.types.push(token);
-      else if (this.ontology.attributes[token]) parsed.attributes.push(token);
-      else if (this.ontology.brands.includes(token)) parsed.brands.push(token);
+      return {
+        originalQuery: query,
+        enhancedQuery: enhancedQuery,
+        embedding: embedding
+      };
+    } catch (error) {
+      console.error('❌ Error processing query:', error);
+      throw error;
     }
-    return parsed;
   }
 
-  // Expand query using ontology synonyms
-  expandParsed(parsed) {
-    const expansions = [];
-    parsed.colors.forEach(c => expansions.push(...this.ontology.colors[c]));
-    parsed.types.forEach(t => expansions.push(...this.ontology.types[t]));
-    parsed.attributes.forEach(a => expansions.push(...this.ontology.attributes[a]));
-    return expansions;
-  }
-
-  // Build enhanced query string
+  // Enhance search query with related automotive terms
   enhanceQuery(query) {
-    const parsed = this.parseQuery(query);
-    const expansions = this.expandParsed(parsed);
-    const enhancedQuery = [query, ...expansions, ...parsed.brands].join(" ");
-    return { parsed, enhancedQuery };
+    const queryLower = query.toLowerCase();
+    const enhancements = [];
+    
+    // Add related terms based on the query
+    if (queryLower.includes('car') || queryLower.includes('vehicle') || queryLower.includes('auto')) {
+      enhancements.push('automobile', 'transportation');
+    }
+    
+    if (queryLower.includes('red') || queryLower.includes('blue') || queryLower.includes('color')) {
+      enhancements.push('colored vehicle', 'painted car');
+    }
+    
+    if (queryLower.includes('sport') || queryLower.includes('fast')) {
+      enhancements.push('performance car', 'racing vehicle');
+    }
+    
+    if (queryLower.includes('luxury') || queryLower.includes('expensive')) {
+      enhancements.push('premium car', 'high-end vehicle');
+    }
+    
+    if (queryLower.includes('truck') || queryLower.includes('pickup')) {
+      enhancements.push('commercial vehicle', 'utility truck');
+    }
+    
+    if (queryLower.includes('suv') || queryLower.includes('crossover')) {
+      enhancements.push('sport utility vehicle', 'family car');
+    }
+    
+    // Combine original query with enhancements
+    const allTerms = [query, ...enhancements];
+    return allTerms.join(' ');
   }
+
+
+// ontology = {
+//     colors: {
+//       red: ["crimson", "scarlet", "ruby"],
+//       blue: ["navy", "azure", "sky blue"],
+//       black: ["jet black", "onyx", "charcoal"],
+//       white: ["ivory", "pearl", "alabaster"]
+//     },
+//     types: {
+//       suv: ["sport utility vehicle", "crossover"],
+//       sedan: ["saloon", "executive car"],
+//       hatchback: ["compact car", "small car"],
+//       coupe: ["two-door car", "sport coupe"],
+//       truck: ["pickup", "utility vehicle"],
+//       car: ["automobile", "vehicle", "auto"]
+//     },
+//     attributes: {
+//       luxury: ["premium", "high-end", "upscale", "exclusive"],
+//       sporty: ["fast", "performance", "racing"],
+//       electric: ["EV", "battery car", "zero-emission"],
+//       cheap: ["budget", "affordable", "economy"]
+//     },
+//     brands: ["bmw", "audi", "mercedes", "tesla", "toyota", "honda"]
+//   };
+//   // Parse query into structured fields
+//   parseQuery(query) {
+//     const tokens = query.toLowerCase().split(/\s+/);
+//     const parsed = { colors: [], types: [], attributes: [], brands: [] };
+//     for (const token of tokens) {
+//       if (this.ontology.colors[token]) parsed.colors.push(token);
+//       else if (this.ontology.types[token]) parsed.types.push(token);
+//       else if (this.ontology.attributes[token]) parsed.attributes.push(token);
+//       else if (this.ontology.brands.includes(token)) parsed.brands.push(token);
+//     }
+//     return parsed;
+//   }
+
+//   // Expand query using ontology synonyms
+//   expandParsed(parsed) {
+//     const expansions = [];
+//     parsed.colors.forEach(c => expansions.push(...this.ontology.colors[c]));
+//     parsed.types.forEach(t => expansions.push(...this.ontology.types[t]));
+//     parsed.attributes.forEach(a => expansions.push(...this.ontology.attributes[a]));
+//     return expansions;
+//   }
+
+//   // Build enhanced query string
+//   enhanceQuery(query) {
+//     const parsed = this.parseQuery(query);
+//     const expansions = this.expandParsed(parsed);
+//     const enhancedQuery = [query, ...expansions, ...parsed.brands].join(" ");
+//     return { parsed, enhancedQuery };
+//   }
 
   // Process query → enhanced string + embedding
   async processQuery(query) {
-    const { enhancedQuery } = this.enhanceQuery(query);
+    // const { enhancedQuery } = this.enhanceQuery(query);
+    const enhancedQuery  = this.enhanceQuery(query);
     const embedding = await this.generateTextEmbedding(enhancedQuery);
     return { originalQuery: query, enhancedQuery, embedding };
   }
@@ -354,7 +355,10 @@ ontology = {
     } = options;
 
     const queryLower = query.toLowerCase();
-    const queryWords = queryLower.split(/\s+/).filter(word => word.length > 2);
+    const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+    const queryWords = queryLower.split(/\s+/)
+      .filter(word => word.length > 2)
+      .filter(word => !commonWords.includes(word));
 
     return results.map(result => {
       let hybridScore = result.similarity * semanticWeight;
@@ -363,7 +367,7 @@ ontology = {
       if (result.tags && Array.isArray(result.tags)) {
         const tagMatches = result.tags.filter(tag => {
           const tagLower = tag.toLowerCase();
-          return queryWords.some(word => tagLower.includes(word));
+          return queryWords.some(word => tagLower.includes(word) || word.includes(tagLower));
         });
         
         // Boost score for tag matches
@@ -377,6 +381,13 @@ ontology = {
           );
           hybridScore += exactMatches.length * 0.1;
         }
+        
+        // Extra boost for partial matches (e.g., "blue" matches "blue car")
+        const partialMatches = result.tags.filter(tag => {
+          const tagLower = tag.toLowerCase();
+          return queryWords.some(word => tagLower.includes(word) && word.length >= 3);
+        });
+        hybridScore += partialMatches.length * 0.05;
       }
       
       // Boost recent images (if metadata contains upload date)

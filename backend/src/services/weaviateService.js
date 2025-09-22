@@ -255,7 +255,7 @@ class WeaviateService {
       // Add tag filtering if tags are provided
       if (tags && tags.length > 0) {
         query = query.withWhere({
-          operator: 'And',
+          operator: 'Or',
           operands: tags.map(tag => ({
             path: ['tags'],
             operator: 'ContainsAny',

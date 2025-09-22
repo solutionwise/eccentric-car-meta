@@ -465,7 +465,7 @@ const resultsPerPage = ref(20)
 
 // Search filters
 const filters = ref({
-  minSimilarity: 0.3,
+  minSimilarity: 0.35,
   sortBy: 'similarity'
 })
 
@@ -520,14 +520,13 @@ const searchImages = async (page = 1, append = false) => {
     const searchBody = {
       query: searchQuery.value,
       limit: resultsPerPage.value,
-      offset: (page - 1) * resultsPerPage.value,
-      minSimilarity: filters.value.minSimilarity
+      offset: (page - 1) * resultsPerPage.value
     }
     
     // Add tag filters if any
-    if (selectedTagFilters.value.length > 0) {
-      searchBody.tags = selectedTagFilters.value
-    }
+    // if (selectedTagFilters.value.length > 0) {
+    //   searchBody.tags = selectedTagFilters.value
+    // }
     
     const response = await apiCall('/api/search', {
       method: 'POST',

@@ -33,7 +33,7 @@ const predefinedTags = {
   ],
 
   features: [
-    'sunroof', 'leather', 'alloy wheels', 'spoiler'
+    'sunroof', 'leather', 'alloy wheels', 'rear spoiler', 'front spoiler'
     // Exterior features
     // 'sunroof', 'moonroof', 'panoramic roof', 'leather', 'alloy wheels', 'chrome wheels',
     // 'spoiler', 'rear spoiler', 'front spoiler', 'side skirts', 'body kit',
