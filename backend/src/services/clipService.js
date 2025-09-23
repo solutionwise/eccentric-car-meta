@@ -3,246 +3,166 @@ const { predefinedTags } = require('../data/predefinedTags');
 
 class ClipService {
   constructor() {
-    this.model = null;
+    this.modelName = 'Xenova/clip-vit-base-patch32';
     this.embeddingCache = new Map();
     this.initialized = false;
-    this.modelName = 'Xenova/clip-vit-base-patch32';
+
+    this.model = null; // zero-shot image classification pipeline
+    this.usePipeline = false; // fallback mode
+    this.visionProcessorPromise = null;
+    this.visionModelPromise = null;
     this.tokenizerPromise = null;
     this.textModelPromise = null;
+    this.featureExtractorPipeline = null;
   }
 
   async initialize() {
     if (this.initialized) return;
 
     try {
-      console.log('🔄 Initializing CLIP model with transformers.js...');
+      console.log('🔄 Initializing CLIP service…');
+      const transformers = await import('@xenova/transformers');
+      const {
+        AutoTokenizer,
+        CLIPTextModelWithProjection,
+        CLIPVisionModelWithProjection,
+        CLIPProcessor,
+        pipeline,
+      } = transformers;
 
-      // Dynamic import for ES module
-      const { pipeline } = await import('@xenova/transformers');
-      if (!this.tokenizer || !this.textModel) {
-        const { AutoTokenizer, CLIPTextModelWithProjection } = await import('@xenova/transformers');
-        this.tokenizerPromise = AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch32');
-        this.textModelPromise = CLIPTextModelWithProjection.from_pretrained('Xenova/clip-vit-base-patch32');
+      // Text support
+      this.tokenizerPromise = AutoTokenizer
+        ? AutoTokenizer.from_pretrained(this.modelName)
+        : null;
+      this.textModelPromise = CLIPTextModelWithProjection
+        ? CLIPTextModelWithProjection.from_pretrained(this.modelName)
+        : null;
+
+      // Vision support
+      if (CLIPProcessor && CLIPVisionModelWithProjection) {
+        this.visionProcessorPromise = CLIPProcessor.from_pretrained(this.modelName);
+        this.visionModelPromise = CLIPVisionModelWithProjection.from_pretrained(this.modelName);
+        this.usePipeline = false;
+        console.log('✅ Using direct CLIP vision model');
+      } else {
+        // Fallback: image-feature-extraction pipeline
+        this.featureExtractorPipeline = await pipeline(
+          'image-feature-extraction',
+          this.modelName,
+          { quantized: false }
+        );
+        this.usePipeline = true;
+        console.log('⚠️ Using fallback pipeline("image-feature-extraction")');
       }
 
-      // Initialize the CLIP pipeline for zero-shot image classification
-      this.model = await pipeline('zero-shot-image-classification', this.modelName, {
-        quantized: false, // Use full precision for better accuracy
-        progress_callback: (progress) => {
-          if (progress.status === 'downloading') {
-            console.log(`📥 Downloading model: ${Math.round(progress.progress * 100)}%`);
-          } else if (progress.status === 'loading') {
-            console.log('🔄 Loading model...');
+      // Zero-shot image classification pipeline (optional)
+      if (!this.model) {
+        this.model = await pipeline('zero-shot-image-classification', this.modelName, {
+          quantized: false,
+          progress_callback: (progress) => {
+            if (progress.status === 'downloading') {
+              console.log(`📥 Downloading model: ${Math.round(progress.progress * 100)}%`);
+            } else if (progress.status === 'loading') {
+              console.log('🔄 Loading model...');
+            }
           }
-        }
-      });
+        });
+      }
 
       this.initialized = true;
-      console.log('✅ CLIP model initialized successfully with transformers.js');
-    } catch (error) {
-      console.error('❌ Failed to initialize CLIP model:', error.message);
-      throw error;
+    } catch (err) {
+      console.error('❌ Initialization error:', err.message);
+      throw err;
     }
-  }
-
-  getImageMimeType(buffer) {
-    if (!buffer || buffer.length < 4) return null;
-
-    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
-      return 'image/jpeg';
-    }
-    if (
-      buffer[0] === 0x89 &&
-      buffer[1] === 0x50 &&
-      buffer[2] === 0x4e &&
-      buffer[3] === 0x47
-    ) {
-      return 'image/png';
-    }
-    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
-      return 'image/gif';
-    }
-    if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
-      return 'image/webp';
-    }
-    return null;
-  }
-
-  bufferToBase64(buffer) {
-    return buffer.toString('base64');
   }
 
   async preprocessImage(imageBuffer) {
-    try {
-      const mimeType = this.getImageMimeType(imageBuffer);
-      if (!mimeType) {
-        throw new Error('Unsupported image format');
-      }
+    return sharp(imageBuffer)
+      .resize(224, 224, { fit: 'cover' })
+      .removeAlpha()           // remove alpha if present
+      .toFormat('png')         // force PNG
+      .raw()                   // output raw RGB pixels
+      .toBuffer({ resolveWithObject: true })
+      .then(({ data, info }) => {
+        if (info.channels !== 3) {
+          throw new Error(`Unexpected number of channels: ${info.channels}`);
+        }
+        return { data, width: info.width, height: info.height };
+      });
+  }
 
-      // Use sharp to preprocess the image for better CLIP performance
-      const processedBuffer = await sharp(imageBuffer)
-        .resize(224, 224, { fit: 'cover' })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-
-      return processedBuffer;
-    } catch (error) {
-      console.error('Error preprocessing image:', error);
-      throw error;
+  normalizeEmbedding(vector, targetLength = 512) {
+    const result = new Array(targetLength).fill(0);
+    for (let i = 0; i < Math.min(vector.length, targetLength); i++) {
+      result[i] = vector[i];
     }
+    return result;
+  }
+
+  async generateTextEmbedding(text) {
+    await this.initialize();
+    const key = `text:${text}`;
+    if (this.embeddingCache.has(key)) return this.embeddingCache.get(key);
+
+    const tokenizer = await this.tokenizerPromise;
+    const model = await this.textModelPromise;
+    if (!tokenizer || !model) {
+      throw new Error('Text model/tokenizer not available');
+    }
+
+    const inputs = await tokenizer(text, { padding: true, truncation: true });
+    const { text_embeds } = await model(inputs);
+    const embedding = this.normalizeEmbedding(Array.from(text_embeds.data));
+
+    this.embeddingCache.set(key, embedding);
+    return embedding;
   }
 
   async generateImageEmbedding(imageBuffer) {
     await this.initialize();
+    const key = `image:${imageBuffer.toString('base64').slice(0, 50)}`;
+    if (this.embeddingCache.has(key)) return this.embeddingCache.get(key);
 
-    try {
-      console.log('🖼️ Generating proper CLIP image embedding...');
+    const { data, width, height } = await this.preprocessImage(imageBuffer);
+    let embedding;
 
-      // Preprocess the image for better CLIP performance
-      const processedBuffer = await this.preprocessImage(imageBuffer);
+    const { RawImage } = await import('@xenova/transformers');
 
-      // Save the processed image to a temporary file for transformers.js
-      const fs = require('fs');
-      const path = require('path');
-      const tempDir = path.join(__dirname, '../../temp');
-      
-      // Ensure temp directory exists
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      
-      const tempFilePath = path.join(tempDir, `temp_${Date.now()}.jpg`);
-      fs.writeFileSync(tempFilePath, processedBuffer);
-
-      try {
-        // Use the existing CLIP pipeline for image classification to get embeddings
-        // This is a workaround since the direct vision model approach has issues
-        const dummyLabels = [
-          ...predefinedTags.colors,
-          ...predefinedTags.types,
-          ...predefinedTags.features,
-          ...predefinedTags.brands,
-        ];
-        const result = await this.model(tempFilePath, dummyLabels);
-        
-        // Convert classification results to a feature vector
-        // This creates a deterministic embedding based on the classification scores
-        const embedding = new Array(512).fill(0);
-        
-        // Use the classification scores to create a feature vector
-        result.forEach((item, index) => {
-          const score = item.score;
-          // Distribute the score across multiple dimensions
-          for (let i = 0; i < 16; i++) {
-            const dimIndex = (index * 16 + i) % 512;
-            embedding[dimIndex] = score * Math.sin(index + i);
-          }
-        });
-        
-        console.log(`✅ Generated CLIP image embedding with ${embedding.length} dimensions`);
-        return embedding;
-      } finally {
-        // Clean up temporary file
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error generating image embedding:', error.message);
-      throw error;
+    if (this.usePipeline) {
+      console.log('🧪 Using fallback pipeline for image-feature-extraction');
+      const rawImage = new RawImage(data, width, height, 3); // width, height, channels
+      const output = await this.featureExtractorPipeline(rawImage);
+      embedding = Array.isArray(output[0]) ? output[0] : output;
+    } else {
+      console.log('🖼️ Using direct CLIP vision model');
+      const visionProcessor = await this.visionProcessorPromise;
+      const visionModel = await this.visionModelPromise;
+      const rawImage = new RawImage(data, width, height, 3);
+      const inputs = await visionProcessor(rawImage);
+      const { image_embeds } = await visionModel(inputs);
+      embedding = Array.from(image_embeds.data);
     }
-  }
-  
-    // async generateTextEmbedding(text) {
-    //   await this.initialize();
-  
-    //   try {
-    //     console.log(`📝 Generating text embedding for: "${text}"`);
-  
-    //     // For text embeddings, we'll create a feature vector based on the text content
-    //     // This is a simplified approach since transformers.js zero-shot classification
-    //     // is primarily designed for image classification
-        
-    //     // Create a deterministic feature vector based on text characteristics
-    //     const featureVector = new Array(512).fill(0);
-        
-    //     // Hash the text to create deterministic features
-    //     let hash = 0;
-    //     for (let i = 0; i < text.length; i++) {
-    //       const char = text.charCodeAt(i);
-    //       hash = ((hash << 5) - hash) + char;
-    //       hash = hash & hash; // Convert to 32-bit integer
-    //     }
-        
-    //     // Use the hash to seed the feature vector
-    //     const seed = Math.abs(hash);
-    //     for (let i = 0; i < 512; i++) {
-    //       // Create deterministic but varied values based on text content
-    //       const value = Math.sin(seed + i) * 0.5;
-    //       featureVector[i] = value;
-    //     }
-  
-    //     console.log(`✅ Generated text embedding with ${featureVector.length} dimensions`);
-    //     return featureVector;
-    //   } catch (error) {
-    //     console.error('❌ Error generating text embedding:', error.message);
-    //     throw error;
-    //   }
-    // }
-  
-  async generateTextEmbedding(text) {
-    try {
-      await this.initialize();
-      const tokenizer = await this.tokenizerPromise;
-      const textModel = await this.textModelPromise;
-      
-      const textInputs = tokenizer(text, { padding: true, truncation: true });
-      const { text_embeds } = await textModel(textInputs);
-      return Array.from(text_embeds.data);
-    } catch (error) {
-      console.error('Error generating text embedding:', error);
-      throw error;
-    }
+
+    embedding = this.normalizeEmbedding(embedding);
+    this.embeddingCache.set(key, embedding);
+    return embedding;
   }
 
-  // Generate enhanced image embedding that includes tag information
   async generateEnhancedImageEmbedding(imageBuffer, tags = []) {
-    try {
-      console.log('🖼️ Generating enhanced image embedding with tag information...');
-      
-      // Get the base image embedding
-      const imageEmbedding = await this.generateImageEmbedding(imageBuffer);
-      
-      // If no tags, return the base embedding
-      if (!tags || tags.length === 0) {
-        return imageEmbedding;
-      }
-      
-      // Generate text embedding for tags
-      const tagText = tags.join(' ');
-      const tagEmbedding = await this.generateTextEmbedding(tagText);
-      
-      // Combine image and tag embeddings using weighted average
-      // This creates a richer representation that includes both visual and semantic information
-      const combinedEmbedding = new Array(imageEmbedding.length).fill(0);
-      
-      // Weight: 70% image, 30% tags
-      const imageWeight = 0.7;
-      const tagWeight = 0.3;
-      
-      for (let i = 0; i < imageEmbedding.length; i++) {
-        const imageValue = imageEmbedding[i] || 0;
-        const tagValue = tagEmbedding[i] || 0;
-        combinedEmbedding[i] = (imageValue * imageWeight) + (tagValue * tagWeight);
-      }
-      
-      console.log(`✅ Generated enhanced embedding with ${combinedEmbedding.length} dimensions (image + tags)`);
-      return combinedEmbedding;
-    } catch (error) {
-      console.error('❌ Error generating enhanced image embedding:', error);
-      // Fallback to base image embedding if tag processing fails
-      return await this.generateImageEmbedding(imageBuffer);
+    let imageEmbedding = await this.generateImageEmbedding(imageBuffer);
+    if (!tags || tags.length === 0) return imageEmbedding;
+
+    let tagEmbedding = await this.generateTextEmbedding(tags.join(' '));
+
+    const combined = [];
+    const imageWeight = 0.7;
+    const tagWeight = 0.3;
+
+    for (let i = 0; i < 512; i++) {
+      combined.push((imageEmbedding[i] || 0) * imageWeight + (tagEmbedding[i] || 0) * tagWeight);
     }
+
+    return combined;
   }
 
   async clearCache() {
@@ -250,19 +170,12 @@ class ClipService {
     console.log('✅ CLIP embedding cache cleared');
   }
 
-  // Legacy methods for backward compatibility
-  async classificationToEmbedding(classification) {
-    console.warn('⚠️ classificationToEmbedding is deprecated, use generateTextEmbedding instead');
-    return this.generateTextEmbedding(classification);
+  // Process query → enhanced string + embedding
+  async processQuery(query) {
+    const enhancedQuery  = this.enhanceQuery(query);
+    const embedding = await this.generateTextEmbedding(enhancedQuery);
+    return { originalQuery: query, enhancedQuery, embedding };
   }
-
-  createLabelMapping(labels) {
-    console.warn('⚠️ createLabelMapping is deprecated, use predefined tags instead');
-    return labels.map(label => ({ label, score: 0 }));
-  }
-
-
-  // Enhance search query with related automotive terms
   enhanceQuery(query) {
     const queryLower = query.toLowerCase();
     const enhancements = [];
@@ -295,130 +208,6 @@ class ClipService {
     // Combine original query with enhancements
     const allTerms = [query, ...enhancements];
     return allTerms.join(' ');
-  }
-
-
-// ontology = {
-//     colors: {
-//       red: ["crimson", "scarlet", "ruby"],
-//       blue: ["navy", "azure", "sky blue"],
-//       black: ["jet black", "onyx", "charcoal"],
-//       white: ["ivory", "pearl", "alabaster"]
-//     },
-//     types: {
-//       suv: ["sport utility vehicle", "crossover"],
-//       sedan: ["saloon", "executive car"],
-//       hatchback: ["compact car", "small car"],
-//       coupe: ["two-door car", "sport coupe"],
-//       truck: ["pickup", "utility vehicle"],
-//       car: ["automobile", "vehicle", "auto"]
-//     },
-//     attributes: {
-//       luxury: ["premium", "high-end", "upscale", "exclusive"],
-//       sporty: ["fast", "performance", "racing"],
-//       electric: ["EV", "battery car", "zero-emission"],
-//       cheap: ["budget", "affordable", "economy"]
-//     },
-//     brands: ["bmw", "audi", "mercedes", "tesla", "toyota", "honda"]
-//   };
-//   // Parse query into structured fields
-//   parseQuery(query) {
-//     const tokens = query.toLowerCase().split(/\s+/);
-//     const parsed = { colors: [], types: [], attributes: [], brands: [] };
-//     for (const token of tokens) {
-//       if (this.ontology.colors[token]) parsed.colors.push(token);
-//       else if (this.ontology.types[token]) parsed.types.push(token);
-//       else if (this.ontology.attributes[token]) parsed.attributes.push(token);
-//       else if (this.ontology.brands.includes(token)) parsed.brands.push(token);
-//     }
-//     return parsed;
-//   }
-
-//   // Expand query using ontology synonyms
-//   expandParsed(parsed) {
-//     const expansions = [];
-//     parsed.colors.forEach(c => expansions.push(...this.ontology.colors[c]));
-//     parsed.types.forEach(t => expansions.push(...this.ontology.types[t]));
-//     parsed.attributes.forEach(a => expansions.push(...this.ontology.attributes[a]));
-//     return expansions;
-//   }
-
-//   // Build enhanced query string
-//   enhanceQuery(query) {
-//     const parsed = this.parseQuery(query);
-//     const expansions = this.expandParsed(parsed);
-//     const enhancedQuery = [query, ...expansions, ...parsed.brands].join(" ");
-//     return { parsed, enhancedQuery };
-//   }
-
-  // Process query → enhanced string + embedding
-  async processQuery(query) {
-    // const { enhancedQuery } = this.enhanceQuery(query);
-    const enhancedQuery  = this.enhanceQuery(query);
-    const embedding = await this.generateTextEmbedding(enhancedQuery);
-    return { originalQuery: query, enhancedQuery, embedding };
-  }
-
-  // Hybrid search combining semantic similarity with keyword matching
-  async hybridSearch(query, results, options = {}) {
-    const {
-      semanticWeight = 0.7,
-      keywordWeight = 0.3,
-      boostExactMatches = true,
-      boostRecentImages = true
-    } = options;
-
-    const queryLower = query.toLowerCase();
-    const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
-    const queryWords = queryLower.split(/\s+/)
-      .filter(word => word.length > 2)
-      .filter(word => !commonWords.includes(word));
-
-    return results.map(result => {
-      let hybridScore = result.similarity * semanticWeight;
-      
-      // Keyword matching on tags
-      if (result.tags && Array.isArray(result.tags)) {
-        const tagMatches = result.tags.filter(tag => {
-          const tagLower = tag.toLowerCase();
-          return queryWords.some(word => tagLower.includes(word) || word.includes(tagLower));
-        });
-        
-        // Boost score for tag matches
-        const tagScore = tagMatches.length / Math.max(queryWords.length, 1);
-        hybridScore += tagScore * keywordWeight;
-        
-        // Extra boost for exact tag matches
-        if (boostExactMatches) {
-          const exactMatches = result.tags.filter(tag => 
-            queryWords.some(word => tag.toLowerCase() === word)
-          );
-          hybridScore += exactMatches.length * 0.1;
-        }
-        
-        // Extra boost for partial matches (e.g., "blue" matches "blue car")
-        const partialMatches = result.tags.filter(tag => {
-          const tagLower = tag.toLowerCase();
-          return queryWords.some(word => tagLower.includes(word) && word.length >= 3);
-        });
-        hybridScore += partialMatches.length * 0.05;
-      }
-      
-      // Boost recent images (if metadata contains upload date)
-      if (boostRecentImages && result.metadata && result.metadata.uploadDate) {
-        const uploadDate = new Date(result.metadata.uploadDate);
-        const daysSinceUpload = (Date.now() - uploadDate.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSinceUpload < 30) {
-          hybridScore += 0.05; // Small boost for recent images
-        }
-      }
-      
-      return {
-        ...result,
-        similarity: Math.min(hybridScore, 1.0), // Cap at 1.0
-        originalSimilarity: result.similarity
-      };
-    }).sort((a, b) => b.similarity - a.similarity);
   }
 }
 
