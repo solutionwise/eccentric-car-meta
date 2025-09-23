@@ -119,7 +119,7 @@ const _sfc_main = {
       const _component_Card = resolveComponent("Card");
       const _component_Badge = resolveComponent("Badge");
       const _component_TagDisplay = _sfc_main$1;
-      _push(`<div${ssrRenderAttrs(mergeProps({ class: "min-h-screen bg-gray-50" }, _attrs))}><header class="bg-white shadow-sm border-b"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div class="flex justify-between items-center h-16"><div class="flex items-center"><h1 class="text-xl font-semibold text-gray-900">Eccentric Car Meta</h1></div><div class="flex items-center space-x-4">`);
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "min-h-screen bg-gray-50" }, _attrs))}><header class="bg-white shadow-sm border-b"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div class="flex justify-between items-center h-16"><div class="flex items-center"><h1 class="text-xl font-semibold text-gray-900">Eccentric Car Finder</h1></div><div class="flex items-center space-x-4">`);
       _push(ssrRenderComponent(_component_NuxtLink, { to: "/admin" }, {
         default: withCtx((_, _push2, _parent2, _scopeId) => {
           if (_push2) {

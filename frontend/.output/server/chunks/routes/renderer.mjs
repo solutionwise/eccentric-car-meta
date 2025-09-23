@@ -72,7 +72,7 @@ function createHead(options = {}) {
   return head;
 }
 
-const appHead = {"meta":[{"charset":"utf-8"},{"name":"viewport","content":"width=device-width, initial-scale=1"},{"name":"description","content":"AI-powered automotive image search using natural language queries"}],"link":[{"rel":"icon","type":"image/x-icon","href":"/favicon.ico"}],"style":[],"script":[],"noscript":[],"title":"Eccentric Car Meta"};
+const appHead = {"meta":[{"charset":"utf-8"},{"name":"viewport","content":"width=device-width, initial-scale=1"},{"name":"description","content":"AI-powered automotive image search using natural language queries"}],"link":[{"rel":"icon","type":"image/x-icon","href":"/favicon.ico"}],"style":[],"script":[],"noscript":[],"title":"Eccentric Car Finder"};
 
 const appRootTag = "div";
 

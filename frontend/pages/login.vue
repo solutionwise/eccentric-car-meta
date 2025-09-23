@@ -6,7 +6,7 @@
           Sign in to your account
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600">
-          Eccentric Car Meta - AI Image Search
+          Eccentric Car Finder - AI Image Search
         </p>
       </div>
       <form class="mt-8 space-y-6" @submit.prevent="login">

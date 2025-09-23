@@ -1,4 +1,4 @@
-# Getting Started with Eccentric Car Meta
+# Getting Started with Eccentric Car Finder
 
 This guide will help you get the automotive text-to-image search system up and running quickly.
 

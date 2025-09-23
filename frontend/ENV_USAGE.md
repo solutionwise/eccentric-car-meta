@@ -14,7 +14,7 @@ This document explains how to use environment variables in the frontend applicat
 ## Available Environment Variables
 
 - `API_BASE_URL`: The base URL for the backend API (default: http://localhost:3001)
-- `APP_NAME`: The application name (default: Eccentric Car Meta)
+- `APP_NAME`: The application name (default: Eccentric Car Finder)
 - `APP_DESCRIPTION`: The application description for SEO
 - `NODE_ENV`: The environment mode (development/production)
 

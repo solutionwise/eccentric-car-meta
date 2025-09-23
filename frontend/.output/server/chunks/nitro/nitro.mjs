@@ -4020,7 +4020,7 @@ const _inlineRuntimeConfig = {
   },
   "public": {
     "apiBase": "http://localhost:3001",
-    "appName": "Eccentric Car Meta",
+    "appName": "Eccentric Car Finder",
     "appDescription": "AI-powered automotive image search using natural language queries"
   }
 };

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Eccentric Car Meta - Ubuntu Deployment Script
+# Eccentric Car Finder - Ubuntu Deployment Script
 # For 4-core, 8GB RAM servers
 
 set -e  # Exit on any error
@@ -46,7 +46,7 @@ check_root() {
 
 # Get user input
 get_config() {
-    echo -e "${BLUE}🚀 Eccentric Car Meta - Ubuntu Deployment${NC}"
+    echo -e "${BLUE}🚀 Eccentric Car Finder - Ubuntu Deployment${NC}"
     echo "================================================"
     
     read -p "Enter your domain name (e.g., example.com): " DOMAIN

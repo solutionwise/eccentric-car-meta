@@ -1,4 +1,4 @@
-# Eccentric Car Meta - Automotive Text-to-Image Search
+# Eccentric Car Finder - Automotive Text-to-Image Search
 
 An AI-powered automotive image search system that allows users to find car images using natural language queries. Built with Nuxt.js, Node.js, and OpenAI CLIP.
 

@@ -1,6 +1,6 @@
 # Authentication System
 
-This document describes the authentication system implemented for the Eccentric Car Meta admin panel.
+This document describes the authentication system implemented for the Eccentric Car Finder admin panel.
 
 ## Overview
 

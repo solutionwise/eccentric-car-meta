@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚗 Setting up Eccentric Car Meta..."
+echo "🚗 Setting up Eccentric Car Finder..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
