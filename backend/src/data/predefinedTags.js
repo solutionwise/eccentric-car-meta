@@ -8,7 +8,7 @@ const predefinedTags = {
     // Extended colors
     'purple', 'brown', 'gold', 'bronze', 'maroon', 'navy', 'beige', 'cream', 'pink', 'turquoise',
     // Metallic variations
-    // 'metallic red', 'metallic blue', 'metallic silver', 'metallic black', 'metallic gray',
+    'metallic red', 'metallic blue', 'metallic silver', 'metallic black', 'metallic gray',
     // 'metallic green', 'metallic gold', 'metallic bronze', 'pearl white', 'pearl black',
     // Specialty colors
     // 'champagne', 'copper', 'gunmetal', 'charcoal', 'midnight blue', 'forest green',
@@ -20,13 +20,14 @@ const predefinedTags = {
     // Standard vehicle types
     'sedan', 'suv', 'truck', 'convertible', 'hatchback', 'coupe', 'wagon', 'minivan',
     // Extended types
-    // 'pickup', 'crossover', 'sports car', 'luxury car', 'supercar', 'muscle car',
+    'pickup', 'crossover', 'sports car', 'luxury car', 'supercar', 'muscle car',
+    'limousine',
     // 'electric car', 'hybrid', 'roadster', 'cabriolet', 'estate', 'limousine',
     // // Commercial vehicles
-    // 'van', 'bus', 'motorhome', 'rv', 'trailer', 'semi truck', 'delivery truck',
+    'van', 'bus', 'motorhome', 'rv', 'trailer', 'semi truck', 'delivery truck',
     // // Specialty vehicles
     // 'off-road vehicle', 'atv', 'utv', 'golf cart', 'go-kart', 'race car',
-    // 'classic car', 'vintage car', 'antique car', 'kit car', 'replica car',
+    'classic car', 'vintage car', 'antique car', 'kit car', 'replica car',
     // // Body styles
     // 'fastback', 'hardtop', 'soft top', 'targa', 'shooting brake', 'liftback',
     // 'notchback', 'kammback', 'sloping roofline', 'boxy', 'aerodynamic'
