@@ -16,25 +16,6 @@ services:
       - weaviate_data:/var/lib/weaviate
     restart: on-failure:0
 
-  python-clip-service:
-    build:
-      context: ./python-clip-service
-      dockerfile: Dockerfile
-    ports:
-      - "5001:5001"
-    environment:
-      - PORT=5001
-      - DEBUG=false
-    volumes:
-      - python_clip_cache:/app/cache
-    restart: on-failure:0
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
 volumes:
   weaviate_data:
-  python_clip_cache:

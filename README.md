@@ -24,7 +24,7 @@ An AI-powered automotive image search system that allows users to find car image
 - **Express.js** - Web framework
 - **SQLite** - Metadata storage
 - **Weaviate** - Vector database
-- **OpenAI CLIP** - Image embeddings
+- **Transformers.js** - CLIP image embeddings (local)
 - **Sharp** - Image processing
 
 ## Quick Start
