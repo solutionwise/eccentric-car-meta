@@ -20,14 +20,14 @@ const predefinedTags = {
     // Standard vehicle types
     'sedan', 'suv', 'truck', 'convertible', 'hatchback', 'coupe', 'wagon', 'minivan',
     // Extended types
-    'pickup', 'crossover', 'sports car', 'luxury car', 'supercar', 'muscle car',
+    'pickup', 'crossover', 'sports', 'luxury', 'supercar', 'muscle',
     'limousine',
     // 'electric car', 'hybrid', 'roadster', 'cabriolet', 'estate', 'limousine',
     // // Commercial vehicles
     'van', 'bus', 'motorhome', 'rv', 'trailer', 'semi truck', 'delivery truck',
     // // Specialty vehicles
     // 'off-road vehicle', 'atv', 'utv', 'golf cart', 'go-kart', 'race car',
-    'classic car', 'vintage car', 'antique car', 'kit car', 'replica car',
+    'classic', 'vintage', 'antique', 'kit', 'replica',
     // // Body styles
     // 'fastback', 'hardtop', 'soft top', 'targa', 'shooting brake', 'liftback',
     // 'notchback', 'kammback', 'sloping roofline', 'boxy', 'aerodynamic'

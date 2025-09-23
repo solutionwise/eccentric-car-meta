@@ -209,6 +209,126 @@ class ClipService {
     const allTerms = [query, ...enhancements];
     return allTerms.join(' ');
   }
+
+  // Hybrid search combining semantic and keyword matching
+  async hybridSearch(query, semanticResults, options = {}) {
+    const {
+      semanticWeight = 0.7,
+      keywordWeight = 0.3,
+      boostExactMatches = true,
+      boostRecentImages = true
+    } = options;
+
+    const queryLower = query.toLowerCase();
+    const queryWords = queryLower.split(/\s+/).filter(word => word.length > 2);
+
+    return semanticResults.map(result => {
+      let hybridScore = result.similarity * semanticWeight;
+      
+      // Keyword matching boost
+      const filename = (result.filename || '').toLowerCase();
+      const originalName = (result.originalName || '').toLowerCase();
+      const tags = (result.tags || []).map(tag => tag.toLowerCase());
+      const allText = [filename, originalName, ...tags].join(' ');
+      
+      let keywordScore = 0;
+      queryWords.forEach(word => {
+        if (allText.includes(word)) {
+          keywordScore += 1;
+        }
+      });
+      
+      // Normalize keyword score
+      keywordScore = Math.min(keywordScore / queryWords.length, 1);
+      hybridScore += keywordScore * keywordWeight;
+      
+      // Boost exact matches
+      if (boostExactMatches) {
+        if (filename.includes(queryLower) || originalName.includes(queryLower)) {
+          hybridScore += 0.1;
+        }
+      }
+      
+      // Boost recent images (if metadata has upload date)
+      if (boostRecentImages && result.metadata && result.metadata.uploadDate) {
+        const uploadDate = new Date(result.metadata.uploadDate);
+        const daysSinceUpload = (Date.now() - uploadDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceUpload < 7) {
+          hybridScore += 0.05; // Small boost for recent uploads
+        }
+      }
+      
+      return {
+        ...result,
+        similarity: Math.min(hybridScore, 1), // Cap at 1.0
+        keywordScore,
+        searchType: 'hybrid'
+      };
+    }).sort((a, b) => b.similarity - a.similarity);
+  }
+
+  // Analyze search intent for better NLP understanding
+  analyzeIntent(query) {
+    const queryLower = query.toLowerCase();
+    const intent = {
+      color: [],
+      // vehicleType: [],
+      features: [],
+      brand: [],
+      style: [],
+      performance: []
+    };
+
+    // Color detection
+    const colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'brown', 'black', 'white', 'gray', 'grey', 'silver', 'gold', 'bronze'];
+    colors.forEach(color => {
+      if (queryLower.includes(color)) {
+        intent.color.push(color);
+      }
+    });
+
+    // Vehicle type detection
+    // const vehicleTypes = ['car', 'truck', 'suv', 'sedan', 'hatchback', 'convertible', 'coupe', 'wagon', 'pickup', 'van', 'minivan', 'crossover', 'sports car', 'luxury car', 'family car'];
+    // vehicleTypes.forEach(type => {
+    //   if (queryLower.includes(type)) {
+    //     intent.vehicleType.push(type);
+    //   }
+    // });
+
+    // Feature detection
+    const features = ['sunroof', 'leather', 'automatic', 'manual', 'all-wheel drive', 'awd', '4wd', 'hybrid', 'electric', 'turbo', 'v8', 'v6', 'diesel', 'gas', 'fuel efficient', 'spacious', 'compact', 'large', 'small'];
+    features.forEach(feature => {
+      if (queryLower.includes(feature)) {
+        intent.features.push(feature);
+      }
+    });
+
+    // Brand detection
+    const brands = ['bmw', 'mercedes', 'audi', 'lexus', 'toyota', 'honda', 'ford', 'chevrolet', 'nissan', 'hyundai', 'kia', 'volkswagen', 'porsche', 'ferrari', 'lamborghini', 'mazda', 'subaru', 'infiniti', 'acura', 'cadillac', 'lincoln', 'buick', 'chrysler', 'dodge', 'jeep', 'ram', 'gmc'];
+    brands.forEach(brand => {
+      if (queryLower.includes(brand)) {
+        intent.brand.push(brand);
+      }
+    });
+
+    // Style detection
+    const styles = ['sporty', 'luxury', 'economical', 'affordable', 'expensive', 'premium', 'budget', 'classic', 'modern', 'vintage', 'retro', 'futuristic'];
+    styles.forEach(style => {
+      if (queryLower.includes(style)) {
+        intent.style.push(style);
+      }
+    });
+
+    // Performance detection
+    const performance = ['fast', 'slow', 'powerful', 'efficient', 'quick', 'speedy', 'performance', 'racing', 'sport', 'turbocharged', 'high-performance'];
+    performance.forEach(perf => {
+      if (queryLower.includes(perf)) {
+        intent.performance.push(perf);
+      }
+    });
+
+    return intent;
+  }
 }
 
 module.exports = new ClipService();

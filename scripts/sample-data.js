@@ -210,17 +210,6 @@ async function main() {
   console.log('\n📊 Summary:');
   console.log(`✅ Successfully uploaded: ${successCount} images`);
   console.log(`❌ Failed uploads: ${errorCount} images`);
-  
-  if (successCount > 0) {
-    console.log('\n🎉 Sample data created successfully!');
-    console.log('You can now test the search functionality at http://localhost:3000');
-    console.log('\nTry these sample searches:');
-    console.log('- "red sports car"');
-    console.log('- "blue SUV"');
-    console.log('- "luxury black sedan"');
-    console.log('- "family car"');
-    console.log('- "convertible"');
-  }
 }
 
 // Run the script

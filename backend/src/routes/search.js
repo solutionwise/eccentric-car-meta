@@ -9,7 +9,7 @@ router.post('/', async (req, res) => {
   try {
     const { 
       query, 
-      limit = 20, 
+      limit = 10, 
       minSimilarity = 0.35,
       useHybridSearch = true,
       semanticWeight = 0.7,
@@ -43,6 +43,9 @@ router.post('/', async (req, res) => {
     // Process the query and generate embedding
     const queryResult = await clipService.processQuery(query);
     
+    // Analyze search intent for better understanding
+    const intent = clipService.analyzeIntent(query);
+    
     // Extract potential tags from the query for tag-based filtering
     // Filter out common words and keep only meaningful automotive terms
     const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
@@ -63,10 +66,21 @@ router.post('/', async (req, res) => {
       return [...new Set(variations)]; // Remove duplicates
     };
     
+    // Combine query words with intent-based terms for better search
+    const intentTerms = [
+      ...intent.color,
+      // ...intent.vehicleType,
+      ...intent.features,
+      ...intent.brand,
+      ...intent.style,
+      ...intent.performance
+    ];
+    
     const queryWords = query.split(/\s+/)
       .filter(word => word.length > 2)
       .filter(word => !commonWords.includes(word.toLowerCase()))
-      .flatMap(word => generateSearchVariations(word)); // Generate variations for each word
+      .flatMap(word => generateSearchVariations(word)) // Generate variations for each word
+      .concat(intentTerms); // Add intent-based terms
     
     // Search only in Weaviate with enhanced embeddings (includes tag information)
     const searchResults = await weaviateService.searchImagesWithTags(
@@ -77,6 +91,7 @@ router.post('/', async (req, res) => {
 
     // Process results directly from Weaviate (no need for database enrichment)
     const enrichedResults = searchResults.map((result) => {
+      console.log('result', result);
       const similarity = result._additional.distance ? 1 - result._additional.distance : 0.9; // Convert distance to similarity
       
       return {
@@ -115,11 +130,12 @@ router.post('/', async (req, res) => {
     res.json({
       query: queryResult.originalQuery,
       enhancedQuery: queryResult.enhancedQuery,
+      intent: intent,
       results: limitedResults,
       totalResults: limitedResults.length,
       totalFound: filteredResults.length,
       minSimilarity: minSimilarity,
-      searchMethod: 'weaviate-only',
+      searchMethod: useHybridSearch ? 'hybrid' : 'semantic-only',
       searchTime: Date.now()
     });
 
@@ -178,29 +194,36 @@ router.get('/analytics', async (req, res) => {
     
     res.json({
       totalImages,
-      searchMethod: 'Weaviate-only with enhanced embeddings',
+      searchMethod: 'Hybrid search with NLP intent analysis',
       searchCapabilities: [
         'Natural language search with CLIP embeddings',
-        'Color-based search with tag integration',
-        'Vehicle type search with semantic understanding',
-        'Feature-based search with enhanced embeddings',
-        'Brand search with combined visual and text features',
-        'Performance search with hybrid scoring'
+        'Intent analysis for color, vehicle type, features, brand, style, and performance',
+        'Hybrid search combining semantic and keyword matching',
+        'Enhanced query processing with automotive domain knowledge',
+        'Smart query expansion with related terms',
+        'Exact match boosting and recent image prioritization'
       ],
       supportedQueries: [
-        'Find red cars',
-        'Show me luxury SUVs',
-        'Fast sports cars',
-        'Family vehicles',
-        'Convertibles with sunroof',
-        'BMW sedans',
-        'Affordable hatchbacks'
+        'Find red sports cars',
+        'Show me luxury SUVs with sunroof',
+        'Fast BMW sedans',
+        'Family vehicles that are economical',
+        'Convertibles with leather seats',
+        'Black trucks with all-wheel drive',
+        'Affordable hatchbacks with good fuel efficiency'
       ],
       embeddingFeatures: [
         'Proper CLIP vision embeddings',
         'Tag information integrated into embeddings',
         '70% visual + 30% semantic weighting',
-        'Enhanced search accuracy'
+        'Enhanced search accuracy with hybrid scoring'
+      ],
+      nlpFeatures: [
+        'Intent analysis for 6 categories (color, vehicle type, features, brand, style, performance)',
+        'Query enhancement with automotive domain knowledge',
+        'Hybrid search with configurable weights',
+        'Smart keyword matching with exact match boosting',
+        'Recent image prioritization'
       ]
     });
   } catch (error) {
@@ -231,7 +254,7 @@ router.post('/analyze', async (req, res) => {
       intent,
       suggestions: {
         color: intent.color.length > 0 ? `Try searching for "${intent.color.join(' ')} vehicles"` : null,
-        vehicleType: intent.vehicleType.length > 0 ? `Try searching for "${intent.vehicleType.join(' ')}"` : null,
+        // vehicleType: intent.vehicleType.length > 0 ? `Try searching for "${intent.vehicleType.join(' ')}"` : null,
         features: intent.features.length > 0 ? `Try searching for vehicles with "${intent.features.join(' ')}"` : null,
         brand: intent.brand.length > 0 ? `Try searching for "${intent.brand.join(' ')} vehicles"` : null
       }
