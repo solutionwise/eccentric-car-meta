@@ -8,7 +8,7 @@ const predefinedTags = {
     // Extended colors
     'purple', 'brown', 'gold', 'bronze', 'maroon', 'navy', 'beige', 'cream', 'pink', 'turquoise',
     // Metallic variations
-    'metallic red', 'metallic blue', 'metallic silver', 'metallic black', 'metallic gray',
+    // 'metallic red', 'metallic blue', 'metallic silver', 'metallic black', 'metallic gray',
     // 'metallic green', 'metallic gold', 'metallic bronze', 'pearl white', 'pearl black',
     // Specialty colors
     // 'champagne', 'copper', 'gunmetal', 'charcoal', 'midnight blue', 'forest green',

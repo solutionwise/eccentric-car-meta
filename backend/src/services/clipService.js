@@ -117,7 +117,12 @@ class ClipService {
       try {
         // Use the existing CLIP pipeline for image classification to get embeddings
         // This is a workaround since the direct vision model approach has issues
-        const dummyLabels = ['car', 'vehicle', 'automobile', 'transportation'];
+        const dummyLabels = [
+          ...predefinedTags.colors,
+          ...predefinedTags.types,
+          ...predefinedTags.features,
+          ...predefinedTags.brands,
+        ];
         const result = await this.model(tempFilePath, dummyLabels);
         
         // Convert classification results to a feature vector
