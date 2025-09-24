@@ -5,6 +5,7 @@ const router = express.Router();
 const imageService = require('../services/imageService');
 const clipService = require('../services/clipService');
 const weaviateService = require('../services/weaviateService');
+const carDetectionService = require('../services/carDetectionService');
 const Image = require('../models/Image');
 const fs = require('fs').promises;
 const fsSync = require('fs');
@@ -47,6 +48,51 @@ const ensureTempDir = async () => {
     await fs.access('temp/');
   } catch {
     await fs.mkdir('temp/', { recursive: true });
+  }
+};
+
+// Process car detection and cropping for an image
+const processCarDetection = async (filePath) => {
+  try {
+    console.log('🚗 Starting car detection and cropping process...');
+    
+    // Read the original image
+    const originalImageBuffer = await fs.readFile(filePath);
+    
+    // Detect cars in the image
+    const carRegion = await carDetectionService.getBestCarRegion(originalImageBuffer);
+    
+    if (carRegion) {
+      console.log(`✅ Car detected with confidence: ${carRegion.score.toFixed(3)}`);
+      
+      // Create a focused/cropped image of the car
+      const croppedImageBuffer = await carDetectionService.createFocusedImage(originalImageBuffer, carRegion);
+      
+      // Save the cropped image, replacing the original
+      await fs.writeFile(filePath, croppedImageBuffer);
+      
+      console.log('🎯 Image cropped to focus on detected car');
+      
+      return {
+        carDetected: true,
+        confidence: carRegion.score,
+        label: carRegion.label,
+        originalSize: originalImageBuffer.length,
+        croppedSize: croppedImageBuffer.length
+      };
+    } else {
+      console.log('⚠️ No car detected, keeping original image');
+      return {
+        carDetected: false,
+        originalSize: originalImageBuffer.length
+      };
+    }
+  } catch (error) {
+    console.error('❌ Error in car detection process:', error);
+    return {
+      carDetected: false,
+      error: error.message
+    };
   }
 };
 
@@ -150,16 +196,21 @@ router.post('/', upload.any(), async (req, res) => {
       // Save file to permanent location
       const fileData = await imageService.saveFile(file);
       
-      // Generate auto tags
+      // 🚗 CAR DETECTION AND CROPPING - Process before auto-tagging
+      const carDetectionResult = await processCarDetection(fileData.filePath);
+      console.log('Car detection result:', carDetectionResult);
+      
+      // Generate auto tags (now working with potentially cropped image)
       const autoTags = await imageService.generateAutoTags(fileData.filePath, fileData.originalName);
       
       // Combine auto tags with manual tags
       const manualTags = req.body.tags ? JSON.parse(req.body.tags) : [];
       const allTags = [...new Set([...autoTags, ...manualTags])];
 
-      // Generate enhanced CLIP embedding with tag information
+      // Generate enhanced CLIP embedding with tag information, color histogram, and car detection
       const imageBuffer = await fs.readFile(fileData.filePath);
-      const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags);
+      const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags, true, true); // useColorHistogram=true, useCarDetection=true
+      
       // Store in Weaviate
       const weaviateId = await weaviateService.addImage({
         ...fileData,
@@ -176,7 +227,8 @@ router.post('/', upload.any(), async (req, res) => {
       return res.json({
         success: true,
         message: 'Image uploaded successfully',
-        image: dbImage
+        image: dbImage,
+        carDetection: carDetectionResult
       });
     } else {
       // Multiple files - use multiple upload logic
@@ -189,16 +241,20 @@ router.post('/', upload.any(), async (req, res) => {
           // Save file to permanent location
           const fileData = await imageService.saveFile(file);
           
-          // Generate auto tags
+          // 🚗 CAR DETECTION AND CROPPING - Process before auto-tagging
+          const carDetectionResult = await processCarDetection(fileData.filePath);
+          console.log(`Car detection result for ${file.originalname}:`, carDetectionResult);
+          
+          // Generate auto tags (now working with potentially cropped image)
           const autoTags = await imageService.generateAutoTags(fileData.filePath, fileData.originalName);
           
           // Combine auto tags with manual tags
           const manualTags = req.body.tags ? JSON.parse(req.body.tags) : [];
           const allTags = [...new Set([...autoTags, ...manualTags])];
 
-          // Generate enhanced CLIP embedding with tag information
+          // Generate enhanced CLIP embedding with tag information, color histogram, and car detection
           const imageBuffer = await fs.readFile(fileData.filePath);
-          const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags);
+          const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags, true, true); // useColorHistogram=true, useCarDetection=true
 
           // Store in Weaviate
           const weaviateId = await weaviateService.addImage({
@@ -216,7 +272,8 @@ router.post('/', upload.any(), async (req, res) => {
           results.push({
             success: true,
             filename: file.originalname,
-            image: dbImage
+            image: dbImage,
+            carDetection: carDetectionResult
           });
           successCount++;
         } catch (error) {

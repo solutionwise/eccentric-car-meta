@@ -177,10 +177,11 @@ class WeaviateService {
     try {
       console.log(`Updating tags for Weaviate ID: ${weaviateId}`);
       
+      // Use the data updater API to update only the tags field, preserving the vector
       const result = await this.client.data
-        .updater()
-        .withClassName(this.className)
+        .merger()
         .withId(weaviateId)
+        .withClassName(this.className)
         .withProperties({
           tags: tags
         })
@@ -236,6 +237,90 @@ class WeaviateService {
       console.error('Error searching images by tags in Weaviate:', error);
       throw error;
     }
+  }
+
+  // Search with embedding dimension matching
+  async searchImagesWithDimensionMatching(queryEmbedding, queryEmbeddingLength, limit = 10) {
+    try {
+      // Get all images with their vectors
+      const result = await this.client.graphql
+        .get()
+        .withClassName(this.className)
+        .withFields('filename originalName filePath tags metadata _additional { id vector }')
+        .withLimit(limit * 3) // Get more results for better filtering
+        .do();
+
+      const results = result.data.Get[this.className] || [];
+      
+      // Calculate similarities manually with dimension matching
+      const resultsWithSimilarity = results.map(item => {
+        let metadata = null;
+        try {
+          metadata = item.metadata ? JSON.parse(item.metadata) : null;
+        } catch (error) {
+          console.warn('Failed to parse metadata in Weaviate result:', error.message);
+          metadata = null;
+        }
+        
+        // Get the stored vector and match dimensions with query
+        const storedVector = item._additional.vector || [];
+        let matchedVector = storedVector;
+        
+        // If query embedding is shorter than stored vector, truncate stored vector
+        if (queryEmbeddingLength < storedVector.length) {
+          matchedVector = storedVector.slice(0, queryEmbeddingLength);
+        }
+        // If query embedding is longer than stored vector, pad stored vector with zeros
+        else if (queryEmbeddingLength > storedVector.length) {
+          matchedVector = [...storedVector, ...new Array(queryEmbeddingLength - storedVector.length).fill(0)];
+        }
+        
+        // Calculate cosine similarity
+        const similarity = this.calculateCosineSimilarity(queryEmbedding, matchedVector);
+        const distance = 1 - similarity;
+        
+        return {
+          ...item,
+          metadata: metadata,
+          _additional: {
+            ...item._additional,
+            distance: distance
+          }
+        };
+      });
+      
+      // Sort by similarity (highest first) and limit results
+      return resultsWithSimilarity
+        .sort((a, b) => a._additional.distance - b._additional.distance)
+        .slice(0, limit);
+        
+    } catch (error) {
+      console.error('Error in dimension-matched search:', error);
+      throw error;
+    }
+  }
+
+  // Calculate cosine similarity between two vectors
+  calculateCosineSimilarity(vecA, vecB) {
+    if (vecA.length !== vecB.length) {
+      throw new Error('Vectors must have the same length');
+    }
+    
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
+    }
+    
+    if (normA === 0 || normB === 0) {
+      return 0;
+    }
+    
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
   // Combined search: semantic similarity + tag filtering

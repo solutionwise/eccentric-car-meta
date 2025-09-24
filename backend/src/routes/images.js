@@ -65,53 +65,6 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Update image tags
-router.put('/:id/tags', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { tags } = req.body;
-
-    if (!tags || !Array.isArray(tags)) {
-      return res.status(400).json({ 
-        error: 'Tags must be an array' 
-      });
-    }
-
-    // Get current image
-    const image = await Image.findById(id);
-    if (!image) {
-      return res.status(404).json({ 
-        error: 'Image not found' 
-      });
-    }
-
-    // Update in database
-    await Image.update(id, { tags });
-
-    // Update in Weaviate
-    if (image.weaviate_id) {
-      // Note: Weaviate doesn't support direct property updates easily
-      // In a production system, you might want to re-index the image
-      console.log(`Tags updated for image ${id}, consider re-indexing in Weaviate`);
-    }
-
-    res.json({
-      success: true,
-      message: 'Tags updated successfully',
-      image: {
-        id: parseInt(id),
-        tags
-      }
-    });
-
-  } catch (error) {
-    console.error('Update tags error:', error);
-    res.status(500).json({ 
-      error: 'Failed to update tags',
-      message: error.message 
-    });
-  }
-});
 
 // Update image metadata
 router.put('/:id', async (req, res) => {
