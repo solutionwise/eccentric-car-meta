@@ -187,6 +187,54 @@ class Image {
     });
   }
 
+  async findByFilePath(filePath) {
+    return new Promise((resolve, reject) => {
+      const query = 'SELECT * FROM images WHERE file_path = ?';
+      this.db.get(query, [filePath], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (row && row.tags) {
+            row.tags = JSON.parse(row.tags);
+          }
+          resolve(row);
+        }
+      });
+    });
+  }
+
+  async findByOriginalName(originalName) {
+    return new Promise((resolve, reject) => {
+      const query = 'SELECT * FROM images WHERE original_name = ?';
+      this.db.get(query, [originalName], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (row && row.tags) {
+            row.tags = JSON.parse(row.tags);
+          }
+          resolve(row);
+        }
+      });
+    });
+  }
+
+  async checkIfExists(filePath, originalName) {
+    return new Promise((resolve, reject) => {
+      const query = 'SELECT * FROM images WHERE file_path = ? OR original_name = ?';
+      this.db.get(query, [filePath, originalName], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (row && row.tags) {
+            row.tags = JSON.parse(row.tags);
+          }
+          resolve(row);
+        }
+      });
+    });
+  }
+
   close() {
     this.db.close();
   }
