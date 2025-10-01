@@ -55,15 +55,15 @@ class CarDetectionService {
       // In a real implementation, you would use a working object detection model
       console.log('⚠️ Using simulated car detection for demonstration');
       
-      // Simulate finding a car in the center of the image
+      // Simulate finding a car with more generous bounding box
       const mockResults = [{
         label: 'car',
         score: 0.85,
         box: {
-          xmin: 0.2,
-          ymin: 0.2,
-          xmax: 0.8,
-          ymax: 0.8
+          xmin: 0.1,  // Start from 10% instead of 20%
+          ymin: 0.1,  // Start from 10% instead of 20%
+          xmax: 0.9,  // End at 90% instead of 80%
+          ymax: 0.9   // End at 90% instead of 80%
         },
         label_id: 2
       }];
@@ -91,6 +91,7 @@ class CarDetectionService {
           ymax: detection.box.ymax
         }
       }));
+
 
       console.log(`✅ Found ${detections.length} car(s) in image`);
       
@@ -129,6 +130,12 @@ class CarDetectionService {
         const cropY = Math.max(0, y1);
         const cropWidth = Math.min(x2 - x1, width - cropX);
         const cropHeight = Math.min(y2 - y1, height - cropY);
+
+        // Validate crop dimensions
+        if (cropWidth <= 0 || cropHeight <= 0) {
+          console.warn(`⚠️ Invalid crop dimensions for detection ${i}: ${cropWidth}x${cropHeight}`);
+          continue;
+        }
 
         // Extract car region
         const carRegionBuffer = await image
@@ -181,7 +188,70 @@ class CarDetectionService {
   }
 
   // Method to create a focused image with just the car region
-  async createFocusedImage(imageBuffer, carRegion) {
+  async createFocusedImage(imageBuffer, carRegion, options = {}) {
+    if (!carRegion || !carRegion.pixelBox) {
+      return imageBuffer; // Return original if no car detected or pixelBox missing
+    }
+
+    const { 
+      padding = 0.25, // 25% padding by default
+      preserveAspectRatio = true,
+      targetSize = 224 
+    } = options;
+
+    try {
+      // Use pixelBox coordinates to crop the image
+      const { x1, y1, x2, y2 } = carRegion.pixelBox;
+      const cropWidth = Math.max(1, x2 - x1);
+      const cropHeight = Math.max(1, y2 - y1);
+
+      // Add generous padding to prevent over-cropping (clamped to image bounds)
+      const meta = await sharp(imageBuffer).metadata();
+      const padX = Math.floor(cropWidth * padding);
+      const padY = Math.floor(cropHeight * padding);
+
+      const left = Math.max(0, x1 - padX);
+      const top = Math.max(0, y1 - padY);
+      const right = Math.min(meta.width, x2 + padX);
+      const bottom = Math.min(meta.height, y2 + padY);
+
+      const paddedWidth = Math.max(1, right - left);
+      const paddedHeight = Math.max(1, bottom - top);
+
+      let sharpInstance = sharp(imageBuffer)
+        .extract({
+          left: left,
+          top: top,
+          width: paddedWidth,
+          height: paddedHeight
+        });
+
+      // Resize with better options
+      if (preserveAspectRatio) {
+        sharpInstance = sharpInstance.resize(targetSize, targetSize, { 
+          fit: 'inside', // Preserve aspect ratio, don't crop
+          background: { r: 255, g: 255, b: 255, alpha: 1 } // White background
+        });
+      } else {
+        sharpInstance = sharpInstance.resize(targetSize, targetSize, { 
+          fit: 'cover',
+          position: 'center'
+        });
+      }
+
+      const focusedBuffer = await sharpInstance
+        .jpeg({ quality: 90 })
+        .toBuffer();
+
+      return focusedBuffer;
+    } catch (error) {
+      console.error('❌ Error creating focused image:', error);
+      return imageBuffer; // Fallback to original
+    }
+  }
+
+  // Method to create a less aggressive crop that preserves more context
+  async createContextualImage(imageBuffer, carRegion) {
     if (!carRegion || !carRegion.pixelBox) {
       return imageBuffer; // Return original if no car detected or pixelBox missing
     }
@@ -192,10 +262,10 @@ class CarDetectionService {
       const cropWidth = Math.max(1, x2 - x1);
       const cropHeight = Math.max(1, y2 - y1);
 
-      // Optionally add a small padding (clamped to image bounds)
+      // Add very generous padding to preserve context
       const meta = await sharp(imageBuffer).metadata();
-      const padX = Math.floor(cropWidth * 0.1);
-      const padY = Math.floor(cropHeight * 0.1);
+      const padX = Math.floor(cropWidth * 0.5); // 50% padding for more context
+      const padY = Math.floor(cropHeight * 0.5);
 
       const left = Math.max(0, x1 - padX);
       const top = Math.max(0, y1 - padY);
@@ -205,7 +275,7 @@ class CarDetectionService {
       const paddedWidth = Math.max(1, right - left);
       const paddedHeight = Math.max(1, bottom - top);
 
-      const focusedBuffer = await sharp(imageBuffer)
+      const contextualBuffer = await sharp(imageBuffer)
         .extract({
           left: left,
           top: top,
@@ -213,15 +283,15 @@ class CarDetectionService {
           height: paddedHeight
         })
         .resize(224, 224, { 
-          fit: 'cover',
-          position: 'center'
+          fit: 'inside', // Preserve aspect ratio
+          background: { r: 255, g: 255, b: 255, alpha: 1 } // White background
         })
         .jpeg({ quality: 90 })
         .toBuffer();
 
-      return focusedBuffer;
+      return contextualBuffer;
     } catch (error) {
-      console.error('❌ Error creating focused image:', error);
+      console.error('❌ Error creating contextual image:', error);
       return imageBuffer; // Fallback to original
     }
   }

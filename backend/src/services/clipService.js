@@ -236,16 +236,16 @@ class ClipService {
     }
   }
 
-  async generateImageEmbedding(imageBuffer, useColorHistogram = false, useCarDetection = true) {
+  async generateImageEmbedding(imageBuffer, useColorHistogram = false, useCarDetection = true, preProcessedForCarDetection = false) {
     await this.initialize();
-    const key = `image:${imageBuffer.toString('base64').slice(0, 50)}:${useColorHistogram}:${useCarDetection}`;
+    const key = `image:${imageBuffer.toString('base64').slice(0, 50)}:${useColorHistogram}:${useCarDetection}:${preProcessedForCarDetection}`;
     if (this.embeddingCache.has(key)) return this.embeddingCache.get(key);
 
     let targetImageBuffer = imageBuffer;
     let carDetectionInfo = null;
 
-    // If car detection is enabled, try to focus on car regions
-    if (useCarDetection) {
+    // If car detection is enabled and image hasn't been pre-processed, try to focus on car regions
+    if (useCarDetection && !preProcessedForCarDetection) {
       try {
         const carRegion = await carDetectionService.getBestCarRegion(imageBuffer);
         if (carRegion) {
@@ -264,6 +264,9 @@ class ClipService {
         console.warn('⚠️ Car detection failed, using full image:', error.message);
         carDetectionInfo = { detected: false, error: error.message };
       }
+    } else if (preProcessedForCarDetection) {
+      console.log('🎯 Using pre-processed car-focused image for embedding generation');
+      carDetectionInfo = { detected: true, preProcessed: true };
     }
 
     const { data, width, height } = await this.preprocessImage(targetImageBuffer);
@@ -313,8 +316,8 @@ class ClipService {
     }
   }
 
-  async generateEnhancedImageEmbedding(imageBuffer, tags = [], useColorHistogram = false, useCarDetection = true) {
-    let imageEmbedding = await this.generateImageEmbedding(imageBuffer, useColorHistogram, useCarDetection);
+  async generateEnhancedImageEmbedding(imageBuffer, tags = [], useColorHistogram = false, useCarDetection = true, preProcessedForCarDetection = false) {
+    let imageEmbedding = await this.generateImageEmbedding(imageBuffer, useColorHistogram, useCarDetection, preProcessedForCarDetection);
     if (!tags || tags.length === 0) return imageEmbedding;
 
     let tagEmbedding = await this.generateTextEmbedding(tags.join(' '), useColorHistogram);

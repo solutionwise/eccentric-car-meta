@@ -51,13 +51,15 @@ const ensureTempDir = async () => {
   }
 };
 
-// Process car detection and cropping for an image
-const processCarDetection = async (filePath) => {
+// Process car detection for embedding generation (without modifying original image)
+const processCarDetectionForEmbedding = async (originalImageBuffer, options = {}) => {
   try {
-    console.log('🚗 Starting car detection and cropping process...');
+    console.log('🚗 Starting car detection for embedding generation...');
     
-    // Read the original image
-    const originalImageBuffer = await fs.readFile(filePath);
+    const { 
+      aggressiveCropping = false, // Default to less aggressive cropping
+      padding = aggressiveCropping ? 0.2 : 0.4 // More padding for less aggressive cropping
+    } = options;
     
     // Detect cars in the image
     const carRegion = await carDetectionService.getBestCarRegion(originalImageBuffer);
@@ -65,33 +67,39 @@ const processCarDetection = async (filePath) => {
     if (carRegion) {
       console.log(`✅ Car detected with confidence: ${carRegion.score.toFixed(3)}`);
       
-      // Create a focused/cropped image of the car
-      const croppedImageBuffer = await carDetectionService.createFocusedImage(originalImageBuffer, carRegion);
+      // Create a focused/cropped image of the car for embedding generation
+      const croppedImageBuffer = await carDetectionService.createFocusedImage(originalImageBuffer, carRegion, {
+        padding: padding, // Configurable padding
+        preserveAspectRatio: true, // Don't distort the image
+        targetSize: 224
+      });
       
-      // Save the cropped image, replacing the original
-      await fs.writeFile(filePath, croppedImageBuffer);
-      
-      console.log('🎯 Image cropped to focus on detected car');
+      console.log(`🎯 Created cropped image for embedding (padding: ${(padding * 100).toFixed(0)}%)`);
       
       return {
         carDetected: true,
         confidence: carRegion.score,
         label: carRegion.label,
         originalSize: originalImageBuffer.length,
-        croppedSize: croppedImageBuffer.length
+        croppedSize: croppedImageBuffer.length,
+        padding: padding,
+        aggressiveCropping: aggressiveCropping,
+        croppedImageBuffer: croppedImageBuffer // Return the cropped buffer for embedding
       };
     } else {
-      console.log('⚠️ No car detected, keeping original image');
+      console.log('⚠️ No car detected, using original image for embedding');
       return {
         carDetected: false,
-        originalSize: originalImageBuffer.length
+        originalSize: originalImageBuffer.length,
+        croppedImageBuffer: originalImageBuffer // Use original if no car detected
       };
     }
   } catch (error) {
     console.error('❌ Error in car detection process:', error);
     return {
       carDetected: false,
-      error: error.message
+      error: error.message,
+      croppedImageBuffer: originalImageBuffer // Fallback to original
     };
   }
 };
@@ -193,23 +201,31 @@ router.post('/', upload.any(), async (req, res) => {
     if (files.length === 1) {
       const file = files[0];
       
-      // Save file to permanent location
+      // Save file to permanent location (ORIGINAL IMAGE PRESERVED)
       const fileData = await imageService.saveFile(file);
       
-      // 🚗 CAR DETECTION AND CROPPING - Process before auto-tagging
-      const carDetectionResult = await processCarDetection(fileData.filePath);
+      // Read the original image buffer
+      const originalImageBuffer = await fs.readFile(fileData.filePath);
+      
+      // 🚗 CAR DETECTION FOR EMBEDDING GENERATION ONLY (original image preserved)
+      const carDetectionResult = await processCarDetectionForEmbedding(originalImageBuffer);
       console.log('Car detection result:', carDetectionResult);
       
-      // Generate auto tags (now working with potentially cropped image)
+      // Generate auto tags using the ORIGINAL image (not cropped)
       const autoTags = await imageService.generateAutoTags(fileData.filePath, fileData.originalName);
       
       // Combine auto tags with manual tags
       const manualTags = req.body.tags ? JSON.parse(req.body.tags) : [];
       const allTags = [...new Set([...autoTags, ...manualTags])];
 
-      // Generate enhanced CLIP embedding with tag information, color histogram, and car detection
-      const imageBuffer = await fs.readFile(fileData.filePath);
-      const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags, true, true); // useColorHistogram=true, useCarDetection=true
+      // Generate enhanced CLIP embedding using the CROPPED image for better search accuracy
+      const embedding = await clipService.generateEnhancedImageEmbedding(
+        carDetectionResult.croppedImageBuffer, // Use cropped image for embedding
+        allTags, 
+        true, // useColorHistogram=true
+        true, // useCarDetection=true
+        true  // preProcessedForCarDetection=true (skip internal car detection)
+      );
       
       // Store in Weaviate
       const weaviateId = await weaviateService.addImage({
@@ -238,23 +254,31 @@ router.post('/', upload.any(), async (req, res) => {
 
       for (const file of files) {
         try {
-          // Save file to permanent location
+          // Save file to permanent location (ORIGINAL IMAGE PRESERVED)
           const fileData = await imageService.saveFile(file);
           
-          // 🚗 CAR DETECTION AND CROPPING - Process before auto-tagging
-          const carDetectionResult = await processCarDetection(fileData.filePath);
+          // Read the original image buffer
+          const originalImageBuffer = await fs.readFile(fileData.filePath);
+          
+          // 🚗 CAR DETECTION FOR EMBEDDING GENERATION ONLY (original image preserved)
+          const carDetectionResult = await processCarDetectionForEmbedding(originalImageBuffer);
           console.log(`Car detection result for ${file.originalname}:`, carDetectionResult);
           
-          // Generate auto tags (now working with potentially cropped image)
+          // Generate auto tags using the ORIGINAL image (not cropped)
           const autoTags = await imageService.generateAutoTags(fileData.filePath, fileData.originalName);
           
           // Combine auto tags with manual tags
           const manualTags = req.body.tags ? JSON.parse(req.body.tags) : [];
           const allTags = [...new Set([...autoTags, ...manualTags])];
 
-          // Generate enhanced CLIP embedding with tag information, color histogram, and car detection
-          const imageBuffer = await fs.readFile(fileData.filePath);
-          const embedding = await clipService.generateEnhancedImageEmbedding(imageBuffer, allTags, true, true); // useColorHistogram=true, useCarDetection=true
+          // Generate enhanced CLIP embedding using the CROPPED image for better search accuracy
+          const embedding = await clipService.generateEnhancedImageEmbedding(
+            carDetectionResult.croppedImageBuffer, // Use cropped image for embedding
+            allTags, 
+            true, // useColorHistogram=true
+            true, // useCarDetection=true
+            true  // preProcessedForCarDetection=true (skip internal car detection)
+          );
 
           // Store in Weaviate
           const weaviateId = await weaviateService.addImage({
